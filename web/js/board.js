@@ -377,20 +377,28 @@ const Board = {
     }
 
     // ── 4. Coordinate labels (a–h bottom, 1–8 left) ──
+    // In standard chess orientation (white at bottom), rank "1" sits on the
+    // BOTTOM row and rank "8" on the TOP row. When the board is flipped for
+    // black's perspective, ranks invert (1 at top, 8 at bottom).
     for (let i = 0; i < 8; i++) {
-      const fileIdx = isFlipped ? 7 - i : i;
-      const rankIdx = isFlipped ? 7 - i : i;
+      // i = visual column position (0 = leftmost, 7 = rightmost) for files
+      // i = visual row position (0 = topmost, 7 = bottommost) for ranks
+      const fileLetter = String.fromCharCode(97 + (isFlipped ? 7 - i : i));
 
-      // Files: 'a'..'h' on the bottom row
-      svg += `<text class="board-coord ${(i + 0) % 2 === 0 ? 'light' : 'dark'}" `
+      // Bottom-row file label, anchored to the right edge of each square
+      svg += `<text class="board-coord ${i % 2 === 0 ? 'light' : 'dark'}" `
            + `x="${i * SS + SS - 5}" y="${this.size - 5}" text-anchor="end">`
-           + `${String.fromCharCode(97 + fileIdx)}</text>`;
+           + `${fileLetter}</text>`;
 
-      // Ranks: '1'..'8' on the left column
-      const isTopSquareDark = (i + 0) % 2 === 1;  // alternating shading
-      svg += `<text class="board-coord ${isTopSquareDark ? 'dark' : 'light'}" `
+      // Left-column rank label. For white orientation, the bottom row is rank
+      // 1 → rank label 1 is on the bottom (i=7). For flipped, rank 1 is on
+      // the top (i=0). The "dark" class picks white-ish text when the
+      // adjacent square is dark, and vice versa — alternating by visual row.
+      const rankNum = isFlipped ? (i + 1) : (8 - i);
+      const isAdjacentDark = i % 2 === 1;
+      svg += `<text class="board-coord ${isAdjacentDark ? 'dark' : 'light'}" `
            + `x="5" y="${i * SS + 11}" text-anchor="start">`
-           + `${rankIdx + 1}</text>`;
+           + `${rankNum}</text>`;
     }
 
     svg += `</svg>`;
