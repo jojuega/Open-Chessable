@@ -12,20 +12,27 @@ MIN_EASE_FACTOR = 1.3
 INTERVALS = [1, 3, 7, 14, 28, 56, 112, 224]  # Days for first 8 reps (if EF=2.5)
 
 
-def review_move(move: dict, quality: int) -> dict:
+def review_move(move: dict, quality: int = None, attempts: int = 1, got_right: bool = True) -> dict:
     """
-    Update a move's SRS fields based on review quality.
+    Update a move's SRS fields based on training performance.
     
-    Quality scale (0-5):
-        0 — Complete blackout, didn't remember the move at all
-        1 — Wrong move, but the correct one looked familiar
-        2 — Wrong move, but correct one seemed easy after seeing it
-        3 — Correct with serious difficulty / long hesitation
-        4 — Correct after slight hesitation
-        5 — Perfect recall, instant and confident
+    Chessable-style SRS: performance is OBSERVED, not self-rated.
+    - got_right=True, attempts=1 → quality 5 (perfect)
+    - got_right=True, attempts=2 → quality 4 (hesitation)
+    - got_right=True, attempts=3+ → quality 3 (difficult)
+    - got_right=False → quality 2 (failed, saw answer)
     
-    Returns updated move dict with new SRS values.
+    If `quality` is explicitly provided (backward compat), use that instead.
     """
+    if quality is None:
+        if got_right and attempts == 1:
+            quality = 5  # Perfect — got it on first try
+        elif got_right and attempts == 2:
+            quality = 4  # Slight hesitation — got it on second try
+        elif got_right:
+            quality = 3  # Difficult — needed 3+ attempts
+        else:
+            quality = 2  # Failed — couldn't recall, saw correct answer
     ef = move.get("ease_factor", INITIAL_EASE_FACTOR)
     reps = move.get("repetitions", 0)
     interval = move.get("interval", 0)

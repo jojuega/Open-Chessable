@@ -149,24 +149,28 @@ def api_get_due_moves():
 def api_review_move():
     data = request.get_json() or {}
     move_id = data.get("move_id")
-    quality = data.get("quality")
+    quality = data.get("quality")  # Optional — auto-calculated if None
+    attempts = data.get("attempts", 1)
+    got_right = data.get("got_right", True)
     
-    if move_id is None or quality is None:
-        return jsonify({"error": "move_id and quality are required"}), 400
+    if move_id is None:
+        return jsonify({"error": "move_id is required"}), 400
     
-    if not isinstance(quality, int) or quality < 0 or quality > 5:
+    # Validate quality if provided explicitly
+    if quality is not None and (not isinstance(quality, int) or quality < 0 or quality > 5):
         return jsonify({"error": "quality must be an integer 0-5"}), 400
     
     move = get_move(move_id)
     if not move:
         return jsonify({"error": "Move not found"}), 404
     
-    updated_srs = review_move(move, quality)
+    updated_srs = review_move(move, quality=quality, attempts=attempts, got_right=got_right)
     updated_move = update_move_review(move_id, updated_srs)
     
     return jsonify({
         "move": updated_move,
-        "quality_label": get_quality_label(quality),
+        "attempts": attempts,
+        "got_right": got_right,
     })
 
 
