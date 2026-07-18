@@ -3,9 +3,16 @@ Open-Chessable: PGN parser using python-chess
 Extracts variations as learnable moves (FEN + UCI move) from PGN files.
 """
 
-import chess.pgn
 import io
 from typing import List, Dict, Tuple
+
+# Lazy import — python-chess is only needed when actually parsing PGN
+try:
+    import chess
+    import chess.pgn
+    _HAS_CHESS = True
+except ImportError:
+    _HAS_CHESS = False
 
 
 def parse_pgn(pgn_text: str) -> List[Dict]:
@@ -21,6 +28,9 @@ def parse_pgn(pgn_text: str) -> List[Dict]:
     
     Handles recursive variations (RAV — parenthesized sub-variations in PGN).
     """
+    if not _HAS_CHESS:
+        raise ImportError("python-chess is required for PGN parsing. Install with: pip install python-chess")
+    
     moves = []
     pgn_io = io.StringIO(pgn_text)
     
