@@ -385,15 +385,19 @@ const Board = {
       // i = visual row position (0 = topmost, 7 = bottommost) for ranks
       const fileLetter = String.fromCharCode(97 + (isFlipped ? 7 - i : i));
 
-      // Bottom-row file label, anchored to the right edge of each square
-      svg += `<text class="board-coord ${i % 2 === 0 ? 'light' : 'dark'}" `
+      // Bottom-row file label, anchored to the right edge of each square.
+      // The bottom row alternates a1 (dark) → b1 (light) → c1 (dark) → ...
+      // so i=0 (file 'a') sits on a DARK square and needs the "dark" class
+      // (light text); i=1 (file 'b') sits on a LIGHT square and needs the
+      // "light" class (muted text). i % 2 === 0 means dark square.
+      svg += `<text class="board-coord ${i % 2 === 0 ? 'dark' : 'light'}" `
            + `x="${i * SS + SS - 5}" y="${this.size - 5}" text-anchor="end">`
            + `${fileLetter}</text>`;
 
       // Left-column rank label. For white orientation, the bottom row is rank
       // 1 → rank label 1 is on the bottom (i=7). For flipped, rank 1 is on
-      // the top (i=0). The "dark" class picks white-ish text when the
-      // adjacent square is dark, and vice versa — alternating by visual row.
+      // the top (i=0). The a-file alternates a8 (light) → a7 (dark) → ...
+      // so i=0 (rank '8') is next to a LIGHT square → "light" class.
       const rankNum = isFlipped ? (i + 1) : (8 - i);
       const isAdjacentDark = i % 2 === 1;
       svg += `<text class="board-coord ${isAdjacentDark ? 'dark' : 'light'}" `
