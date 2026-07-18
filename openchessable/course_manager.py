@@ -695,3 +695,139 @@ def get_stats() -> dict:
         "today": today,
         "now": now_iso,
     }
+
+
+# ─── Course-style PGN import (multi-game, chapter-grouped) ──────────────
+
+def split_pgn_games(pgn_text: str) -> list:
+    """Split a multi-game PGN text into (headers, movetext) tuples.
+
+    Returns a list of dicts: {white, black, movetext}.
+    Each game block starts at a ``[Event`` tag and ends before the next.
+    """
+    games = []
+    current_headers = {}
+    current_lines = []
+
+    def flush():
+        if current_headers or current_lines:
+            games.append({
+                "white": current_headers.get("White", ""),
+                "black": current_headers.get("Black", ""),
+                "movetext": "\n".join(current_lines).strip(),
+            })
+
+    in_headers = True
+    for raw in pgn_text.splitlines():
+        line = raw.strip()
+        if line.startswith("[Event"):
+            # New game starting — flush previous
+            flush()
+            current_headers = {}
+            current_lines = []
+            in_headers = True
+        if in_headers and line.startswith("["):
+            m = line[1:-1].split(" ", 1)
+            if len(m) == 2:
+                current_headers[m[0]] = m[1].strip('"')
+        elif line:
+            in_headers = False
+            current_lines.append(line)
+
+    flush()
+    return [g for g in games if g["movetext"]]
+
+
+def import_course_pgn(
+    course_id: int,
+    pgn_text: str,
+    chapter_tag: str = "White",
+) -> dict:
+    """Import a full Chessable-style course PGN.
+
+    Each game in the PGN becomes part of a chapter named after the tag
+    chosen by the user (``chapter_tag`` — typically ``"White"`` or
+    ``"Black"``; Chessable course exports usually put the chapter name
+    in one of these fields and the variation name in the other).
+
+    Deduplication is per-chapter on ``(fen, move_uci)`` — so the shared
+    opening moves between two lines in the SAME chapter are stored once,
+    and the branching positions become separate cards. This is exactly
+    the "don't re-drill the first 12 moves for every branch" behaviour:
+    each unique position-to-move pair is one card with one SRS state.
+    """
+    games = split_pgn_games(pgn_text)
+    if not games:
+        return {"error": "No games found in PGN", "chapters": 0, "imported": 0}
+
+    chapter_tag = chapter_tag if chapter_tag in ("White", "Black") else "White"
+    tag_key = chapter_tag.lower()
+
+    conn = get_connection()
+    chapter_map = {}
+
+    total_imported = 0
+    total_skipped = 0
+    chapters_created = 0
+
+    for game in games:
+        chapter_name = (game.get(tag_key) or "").strip() or "Main"
+        if chapter_name not in chapter_map:
+            # Find or create chapter
+            row = conn.execute(
+                "SELECT id FROM chapters WHERE course_id = ? AND name = ?",
+                (course_id, chapter_name),
+            ).fetchone()
+            if row:
+                chapter_map[chapter_name] = row["id"]
+            else:
+                cur = conn.execute(
+                    "INSERT INTO chapters (course_id, name) VALUES (?, ?)",
+                    (course_id, chapter_name),
+                )
+                chapter_map[chapter_name] = cur.lastrowid
+                chapters_created += 1
+
+        chapter_id = chapter_map[chapter_name]
+
+        # Parse this game's movetext
+        try:
+            moves = parse_pgn(game["movetext"])
+        except Exception as e:
+            # Skip unparseable games but continue
+            continue
+
+        for md in moves:
+            existing = conn.execute(
+                "SELECT id FROM moves WHERE chapter_id = ? AND fen = ? AND move_uci = ?",
+                (chapter_id, md["fen"], md["move_uci"]),
+            ).fetchone()
+            if existing:
+                total_skipped += 1
+                continue
+            conn.execute(
+                """INSERT INTO moves
+                   (chapter_id, fen, move_uci, move_san, side, move_number, comment)
+                   VALUES (?, ?, ?, ?, ?, ?, ?)""",
+                (
+                    chapter_id,
+                    md["fen"],
+                    md["move_uci"],
+                    md["move_san"],
+                    md["side"],
+                    md.get("move_number", 0),
+                    md.get("comment", ""),
+                ),
+            )
+            total_imported += 1
+
+    conn.commit()
+    conn.close()
+
+    return {
+        "chapters_created": chapters_created,
+        "chapters_total": len(chapter_map),
+        "games_parsed": len(games),
+        "imported": total_imported,
+        "skipped_duplicates": total_skipped,
+    }

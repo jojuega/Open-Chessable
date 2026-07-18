@@ -35,9 +35,10 @@ const App = {
   },
 
   route() {
-    const hash = window.location.hash.slice(1) || 'dashboard';
+    // Normalize: strip leading '/' so both #dashboard and #/dashboard work
+    const hash = (window.location.hash.slice(1) || 'dashboard').replace(/^\/+/, '');
     const parts = hash.split('/');
-    const route = parts[0];
+    const route = parts[0] || 'dashboard';
     
     // Extract params: #course/123, #train/123, #train/123/white
     const params = {};

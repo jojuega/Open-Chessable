@@ -1,12 +1,15 @@
 """
 Open-Chessable: PGN parser using python-chess
 Extracts variations as learnable moves (FEN + UCI move) from PGN files.
+
+Correct tree walk: at each node, use node.board() which returns the
+position BEFORE the node's move — no manual push/pop bookkeeping needed.
+Every half-move (ply) in every variation becomes one card.
 """
 
 import io
-from typing import List, Dict, Tuple
+from typing import List, Dict
 
-# Lazy import — python-chess is only needed when actually parsing PGN
 try:
     import chess
     import chess.pgn
@@ -17,100 +20,107 @@ except ImportError:
 
 def parse_pgn(pgn_text: str) -> List[Dict]:
     """
-    Parse PGN text and extract all leaf-node variations as learnable moves.
-    
-    Each result represents a position-to-move pair:
-    - fen: FEN of the board BEFORE the move
-    - move_uci: The move to learn in UCI format
-    - move_san: Human-readable SAN notation
-    - side: 'white' or 'black' (the side TO MOVE)
-    - comment: Any annotation on the move
-    
-    Handles recursive variations (RAV — parenthesized sub-variations in PGN).
+    Parse PGN text and extract every half-move of every variation as a card.
+
+    Each result: fen (before the move), move_uci, move_san, side, move_number,
+    comment, and the variation path (list of SAN moves from the game start).
     """
     if not _HAS_CHESS:
-        raise ImportError("python-chess is required for PGN parsing. Install with: pip install python-chess")
-    
-    moves = []
+        raise ImportError(
+            "python-chess is required for PGN parsing. "
+            "Install with: pip install python-chess"
+        )
+
+    moves: List[Dict] = []
     pgn_io = io.StringIO(pgn_text)
-    
+
     while True:
         game = chess.pgn.read_game(pgn_io)
         if game is None:
             break
-        
-        board = game.board()
-        _extract_moves_from_node(board, game, moves, move_number=0)
-    
+
+        # Root board (respects a [FEN "..."] header if present)
+        root_fen = game.board().fen()
+        _walk(game, moves, path=[], move_number=0, root_fen=root_fen)
+
     return moves
 
 
-def _extract_moves_from_node(board, node, moves: List[Dict], move_number: int = 0):
-    """Recursively extract moves from a game node, including variations."""
-    if node.variations:
-        for variation in node.variations:
-            # Save current board state to return to after this variation
-            saved_board = board.copy()
-            saved_number = move_number
-            
-            _extract_variation(board, variation, moves, move_number)
-            
-            # Restore board for next variation
-            board = saved_board
-            move_number = saved_number
+def _walk(node, moves: List[Dict], path: List[str], move_number: int, root_fen: str):
+    """Depth-first walk over the variation tree.
 
+    For each child we need the position BEFORE its move. python-chess'
+    node.board() returns the position AFTER the move, so we track the
+    parent board ourselves: copy it, record FEN, then push.
+    """
+    board = node.board()  # position AT this node (after this node's move,
+                          # or the root position for the game root)
 
-def _extract_variation(board, node, moves: List[Dict], move_number: int):
-    """Extract a single variation line."""
-    current_node = node
-    
-    while current_node:
-        move = current_node.move
-        if move is None:
-            break
-        
-        # Record the position BEFORE this move
+    for i, child in enumerate(node.variations):
+        move = child.move
+
         fen = board.fen()
         move_uci = move.uci()
         try:
             move_san = board.san(move)
         except Exception:
-            move_san = board.san_and_push(move) or move_uci
-            board.pop()
-        
+            move_san = move_uci
+
         side = "white" if board.turn == chess.WHITE else "black"
-        comment = current_node.comment or ""
-        move_number += 1
-        
-        # Make the move on the board
-        board.push(move)
-        
-        # Record this as a learnable position
+        new_path = path + [move_san]
+
         moves.append({
             "fen": fen,
             "move_uci": move_uci,
             "move_san": move_san,
             "side": side,
-            "move_number": move_number,
-            "comment": comment,
+            "move_number": move_number + 1,
+            "comment": child.comment or "",
+            "variation_path": " ".join(
+                (f"{j // 2 + 1}." if j % 2 == 0 else "") + san
+                for j, san in enumerate(new_path)
+            ),
+            "is_mainline": (i == 0),
         })
-        
-        # Handle sub-variations at this node
-        if current_node.variations:
-            saved_board = board.copy()
-            saved_number = move_number
-            
-            # Main line is the first variation; side-lines are the rest
-            for i, var in enumerate(current_node.variations):
-                if i > 0:
-                    board = saved_board.copy()
-                    move_number = saved_number
-                    _extract_variation(board, var, moves, move_number)
-            
-            # Continue with the first variation (main line)
-            current_node = current_node.variations[0]
-        else:
-            current_node = current_node.next()
+
+        # Push on a copy so siblings see the same parent position
+        child_board = board.copy()
+        child_board.push(move)
+        _walk_board(child, child_board, moves, new_path, move_number + 1)
+
+
+def _walk_board(node, board, moves: List[Dict], path: List[str], move_number: int):
+    """Same as _walk but the board is passed explicitly (already pushed)."""
+    for i, child in enumerate(node.variations):
+        move = child.move
+
+        fen = board.fen()
+        move_uci = move.uci()
+        try:
+            move_san = board.san(move)
+        except Exception:
+            move_san = move_uci
+
+        side = "white" if board.turn == chess.WHITE else "black"
+        new_path = path + [move_san]
+
+        moves.append({
+            "fen": fen,
+            "move_uci": move_uci,
+            "move_san": move_san,
+            "side": side,
+            "move_number": move_number + 1,
+            "comment": child.comment or "",
+            "variation_path": " ".join(
+                (f"{j // 2 + 1}." if j % 2 == 0 else "") + san
+                for j, san in enumerate(new_path)
+            ),
+            "is_mainline": (i == 0),
+        })
+
+        child_board = board.copy()
+        child_board.push(move)
+        _walk_board(child, child_board, moves, new_path, move_number + 1)
 
 
 def parse_pgn_file(filepath: str) -> List[Dict]:

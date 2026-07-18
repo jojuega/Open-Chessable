@@ -852,3 +852,549 @@ order is:
 
 Steps 1–3 are enough to make Open-Chessable *look* like Chessable; step 4
 is what makes it *feel* like Chessable.
+
+---
+
+## 13. Training UX deep-dive (v2)
+
+> Scope: the *practice experience* itself — what the user sees, clicks, hears,
+> and feels during a Learn or Review session in MoveTrainer. This section
+> closes the gaps left by §1–§12, which focused on the scheduling algorithm
+> and not the trainer UI. Most facts here come from Chessable's own support
+> docs, the MoveTrainer 2.0 release blog posts, and a 2024 MattPlaysChess
+> settings cheat-sheet that enumerates the in-MoveTrainer settings panel
+> directly. Where a behaviour is described by only one or two user reports
+> it is tagged **Inferred**.
+
+### 13.1 The two top-level "modes" of a session
+
+| Mode | Trigger | What is shown at the start of a move | What happens on a wrong move |
+|---|---|---|---|
+| **Learn** | Click **Learn Next** on the dashboard, or **Learn** on a chapter/variation | The previous correct move is **played automatically** and the comment/annotation for the next move is shown. The user then replays the correct move. ([Chessentials, 2019](https://chessentials.com/chessable-honest-review); [How to browse for/learn-review a variation](https://support.chessable.com/en/articles/9019959-how-do-i-browse-for-and-learn-review-a-certain-variation)) | In *Learn*, a wrong move is replayed for you — *"it re-plays moves I miss when in learning mode, right away. you can also turn off the eye"* (user report, [forum 828556](https://www.chessable.com/discussion/thread/828448/movetrainer-for-memorization-good-for-learning-terrible/828556)). The move is marked wrong and the user must enter the correct one. |
+| **Review** | Click **Review** on the dashboard, chapter, or variation | No annotation is shown up front — the position is presented as a clean test. If the move is wrong, the annotation for the move *is* shown after the failure. ([Chessentials](https://chessentials.com/chessable-honest-review)) | The board flashes / shake, "Incorrect" is shown, the correct move is auto-played, and the user must play it correctly before the trainer moves on. Details in §13.4. |
+
+Both modes use the **same** per-move SRS state model from §2; the only
+difference is what UI chrome and commentary is shown around the quiz.
+
+### 13.2 A Review session, step by step
+
+Reconstructed from the support docs, John Bartholomew's MoveTrainer 2.0 demo
+on his YouTube channel, and forum walkthroughs.
+
+1. **Entry.** User clicks *Review* (per course, per chapter, or per
+   variation) or hits *Review* on the dashboard widget (which consumes the
+   top of the global due-queue). The trainer opens full-screen with a
+   chessboard, a comment pane below, a settings cog, and a progress
+   indicator.
+2. **Position loaded.** The board is set to the first FEN in the queue.
+   The opponent's last move (where applicable) is highlighted in **blue**.
+   *No comment is shown in Review mode.* ([Chessentials](https://chessentials.com/chessable-honest-review))
+3. **Per-move timer.** A countdown bar (default 8 s) begins. The
+   `Time up action` setting controls what happens when it expires
+   (see §13.5).
+4. **User plays a move.** Either by drag-and-drop, by clicking from-to,
+   or by entering SAN in a text box. **Legal-move highlighting** can be
+   toggled off (it's on by default in MT2 — a regression from MT1 that
+   the community complained about, see [forum 169334](https://www.chessable.com/discussion/thread/169334/solved-highlight-legal-moves-toggle)).
+5. **Validation.** The move is compared against the next move in the
+   current variation **and** the precomputed soft-fail alternate list
+   (see §10 of the original doc). The comparison is by SAN after
+   normalising the FEN, not by UCI.
+6. **Outcome A — correct on first try.**
+   - "+40 XP" (or the current level's reward) appears as a brief toast.
+   - An "excellent / correct" sound plays (community reports the
+     sound is high-pitched and many users mute it; [forum 796588](https://www.chessable.com/discussion/thread/796588/options-to-change-sound-of-move-trainer)).
+   - The trainer **automatically advances** to the next position. There
+     is no "Next" button in the happy path. (User report: *"I just want
+     to review the moves … and not have to watch the correct move and
+     press a 'Next' button."* — [forum 574141](https://www.chessable.com/discussion/thread/574141/skip-the-next-button))
+   - The SRS state advances (level + 1, next_due = now + interval[L+1]).
+7. **Outcome B — wrong move.** See §13.4 for the state machine.
+8. **Variation boundary.** When the last move of a variation has been
+   resolved, in **Whole Variation** review the trainer rolls the position
+   back to the start of that variation and re-quizzes on **every** move
+   that wasn't already perfect this session (with *Overstudy* label
+   instead of XP for those that weren't actually due; [blog: Review as
+   "whole variation" is Chessable's new default](https://www.chessable.com/blog/review-whole-variation-chessables-new-default-setting-mean)).
+9. **Session end / recap.** When the queue is drained, a recap screen
+   shows XP earned, accuracy, and a "Continue" button. The `Auto Next`
+   setting (a.k.a. auto-advance after N variations) is what the
+   community now uses to chain sessions without manual clicks
+   ([forum 1014425](https://www.chessable.com/discussion/thread/1014425/random-review-v2/1014807)).
+10. **Exit.** There is a "Pause" / "Exit" button. Pressing it triggers
+    a confirmation dialog because progress in the current variation is
+    otherwise lost ([forum 892425](https://www.chessable.com/discussion/thread/892425/exit-movetrainer-popup-question/892475)).
+
+### 13.3 A Learn session, step by step
+
+Learn mode is *the same* as Review for the validation side, but the
+*presentation* is inverted: the answer is shown first, the user has to
+replay it.
+
+1. **Entry.** *Learn Next* on dashboard or *Learn* on a chapter/variation.
+2. **Comment + first move.** For the first move of a variation, the
+   opening comment of the chapter/variation is shown, the position
+   appears, and *the opponent's first move is auto-played*. A comment
+   for the move you are about to study is shown next to the board.
+3. **User replays.** The user plays the correct move (already shown in
+   the comment/notation pane). The "replay" mechanic is the key
+   difference vs. Review — the trainer is *not* testing the user yet,
+   it is *teaching* the line.
+4. **Next move.** The trainer auto-plays the opponent's reply and
+   shows the comment for the next move. This continues until the end
+   of the variation.
+5. **Full replay.** At the end of the variation the trainer asks the
+   user to play the whole line from the start, **but only the moves
+   the user previously got wrong are actually tested** (the others
+   are auto-played with the *Overstudy* badge). This is the
+   *"re-quiz on missed moves"* behaviour the Chessentials review
+   describes ([Chessentials](https://chessentials.com/chessable-honest-review)).
+6. **Wrap-up.** The same recap screen as Review. A *Learn* session
+   therefore *does* generate SRS progress for the moves that were
+   *tested*, but the auto-played "missed-move" path is what makes
+   Learn feel like teaching, not quizzing.
+
+The community-recognised trade-off is captured in
+[forum 828556](https://www.chessable.com/discussion/thread/828448/movetrainer-for-memorization-good-for-learning-terrible/828556):
+*"I forgot what to do. I like how it re-plays moves I miss when in
+learning mode, right away."*
+
+### 13.4 The wrong-move / retry / give-up state machine
+
+This is the **most important gap** the original research left. Below is
+the state machine as observed in MT2, derived from:
+
+- The `Enable retry` / `Max retries for a mistake` / `Retry action` /
+  `Time up action for retry` settings in the MT2 settings panel
+  ([MattPlaysChess 2024](https://mattplayschess.com/chessable-custom-settings-for-tactics);
+  [Chessable blog: How I went from 300 to 1500 in 9 months](https://www.chessable.com/blog/how-i-went-from-300-to-1500-in-9-months)).
+- Forum reports of *"turn off auto answer"* behaviour
+  ([forum 169878](https://www.chessable.com/discussion/thread/169878/solved-turn-off-auto-answer-/old)).
+- The "Retry a wrong move" support thread
+  ([forum 1019694](https://www.chessable.com/discussion/thread/1019694/retrying-a-wrong-move/new)).
+- The Alex Crompton / Woodpecker / Tactics Time / 100 Endgames You
+  Must Know workflow posts that describe the recommended tactic
+  settings in detail.
+
+```text
+                ┌─────────────────────────────────────┐
+                │   IDLE  (waiting for user to move)  │
+                │   - board shows position            │
+                │   - per-move timer running          │
+                └──────────────┬──────────────────────┘
+                               │ user.move(uci)
+                               ▼
+              ┌────────────────────────────────────────┐
+              │  EVAL  (validate against card.expected │
+              │        and card.soft_fail_alternates)  │
+              └──────────┬──────────────────┬──────────┘
+              correct    │                  │  wrong
+                         ▼                  ▼
+        ┌──────────────────────┐   ┌─────────────────────────────┐
+        │  CORRECT             │   │  WRONG_ATTEMPT              │
+        │  - +XP toast         │   │  - "Incorrect" toast        │
+        │  - sound (if on)     │   │  - shake / red flash on sq  │
+        │  - advance auto      │   │  - "Give up" button appears │
+        │  - SRS level += 1    │   │  - moves piece back / snap  │
+        │  - (cycles at 8)     │   │  - timer: STOP per default  │
+        └──────────┬───────────┘   │  - retry_count += 1         │
+                   │               └──────────┬──────────────────┘
+                   │                          │
+                   │              ┌───────────┴────────────┐
+                   │              │ retry_count <           │
+                   │              │ settings.max_retries?   │
+                   │              └────┬─────────────┬──────┘
+                   │                 yes            no
+                   │                   │             │
+                   │                   ▼             │
+                   │        ┌──────────────────┐    │
+                   │        │  RETRY           │    │
+                   │        │  - retry_count++ │    │
+                   │        │  - timer RESET   │    │
+                   │        │  - (or:          │    │
+                   │        │   "Time-up       │    │
+                   │        │   action for     │    │
+                   │        │   retry" applied)│    │
+                   │        │  - same position │    │
+                   │        │  - same expected │    │
+                   │        └────────┬─────────┘    │
+                   │                 │              │
+                   │                 └──► back to IDLE
+                   │                                │
+                   │                                ▼
+                   │                  ┌──────────────────────────┐
+                   │                  │  REVEAL  (no more retry)│
+                   │                  │  - correct move auto-   │
+                   │                  │    played on board      │
+                   │                  │  - comment for the      │
+                   │                  │    correct move shown   │
+                   │                  │  - "Next" button now    │
+                   │                  │    required to advance  │
+                   │                  │  - SRS: level = 1       │
+                   │                  │    (the answer is       │
+                   │                  │    counted as a fail    │
+                   │                  │    regardless of any    │
+                   │                  │    earlier correct      │
+                   │                  │    attempts)           │
+                   │                  └──────────┬───────────────┘
+                   │                             │ user.click("Next")
+                   ▼                             ▼
+                ┌────────────────────────────────────────┐
+                │  ADVANCE  (next move / next variation)│
+                │  - clears feedback                    │
+                │  - if last move of variation,         │
+                │    "Overstudy" wrap-up flow (§13.2.8) │
+                └────────────────────────────────────────┘
+```
+
+Pseudocode for `web/js/trainer.js`:
+
+```javascript
+// Pseudocode — for direct port into web/js/trainer.js
+
+const Trainer = {
+  // ... existing state ...
+  retryCount: 0,
+  gaveUp: false,
+
+  // Settings pulled from the per-user settings panel (gear icon).
+  settings: {
+    timeUpAction:    'stop_timer',  // 'stop_timer' | 'show_answer' | 'fail_immediately'
+    enableRetry:     true,
+    maxRetries:      1,             // 0 = no retry, ∞ = unlimited
+    retryAction:     'stop_timer',  // 'stop_timer' | 'restart_timer' | 'show_answer'
+    timeUpActionForRetry: 'stop_timer',
+    highlightLegalMoves: true,
+    autoNext:        false,         // new: auto-advance after a recap
+    // (chessable-internal)
+    showAnswerDelayMs: 600,
+  },
+
+  onUserMove(uci) {
+    if (this.state !== 'IDLE') return;          // ignore input during feedback
+    const card = this.currentCard();
+
+    const correct = this.isExpectedMove(uci, card);
+
+    if (correct) {
+      this.transitionTo('CORRECT');
+      this.srs.markCorrect(card);                // level += 1, schedule next
+      this.playSound('correct');
+      this.flashXP(card.xpForLevel(card.level));
+      this.scheduleAdvance(800);                 // short pause, then auto
+    } else {
+      this.playSound('wrong');
+      this.flashIncorrect();
+      this.shakePiece(uci);
+      this.retryCount += 1;
+
+      const canRetry = this.settings.enableRetry
+                    && this.retryCount <= this.settings.maxRetries;
+
+      if (canRetry) {
+        this.transitionTo('RETRY');
+        // 'Retry action' controls timer behaviour here.
+        switch (this.settings.retryAction) {
+          case 'stop_timer':          clearInterval(this.moveTimer); break;
+          case 'restart_timer':       this.startMoveTimer();        break;
+          case 'show_answer':         this.reveal(card);            break;
+        }
+        // Snap the user's piece back so they can try again.
+        this.board.undoLastMove();
+      } else {
+        // Out of retries (or retry disabled) — reveal and require replay.
+        this.reveal(card);
+        this.srs.markFailed(card);   // drops level to 1; counts as fail
+        // Note: ANY wrong answer, retry or not, drops the level to 1
+        // the first time it goes wrong. The level doesn't drop
+        // *again* for repeat wrong answers in the same session.
+        this.gaveUp = true;
+      }
+    }
+  },
+
+  onTimerExpire() {
+    // Distinguish the two timers.
+    if (this.state === 'RETRY') {
+      this.handleTimeUp(this.settings.timeUpActionForRetry);
+    } else {
+      this.handleTimeUp(this.settings.timeUpAction);
+    }
+  },
+
+  handleTimeUp(action) {
+    switch (action) {
+      case 'stop_timer':
+        // Stop counting; user can still play until they submit.
+        clearInterval(this.moveTimer);
+        break;
+      case 'show_answer':
+        this.reveal(this.currentCard());
+        this.srs.markFailed(this.currentCard());
+        break;
+      case 'fail_immediately':
+        this.reveal(this.currentCard());
+        this.srs.markFailed(this.currentCard());
+        this.requireReplayBeforeAdvance();
+        break;
+    }
+  },
+
+  reveal(card) {
+    this.transitionTo('REVEAL');
+    this.board.playMove(card.expectedUci);   // animate the correct move
+    this.commentPane.show(card.annotation);  // show WHY it's correct
+    this.giveUpBtn.hide();
+    this.nextBtn.show();                     // explicit user click required
+  },
+
+  onNextClicked() {
+    // In REVEAL state the user MUST play the correct move themselves
+    // before Next becomes enabled. (See the standard MT2 "give up → must
+    // replay" flow described in forum 574141 + 169878.)
+    if (this.state === 'REVEAL' && !this.replayVerified) return;
+    this.transitionTo('ADVANCE');
+    this.loadNextCard();
+  },
+
+  isExpectedMove(uci, card) {
+    if (uci === card.expectedUci) return true;
+    // Soft-fail list (per §10): engine-equivalent alternates accepted.
+    return card.softFailAlternates.includes(uci);
+  },
+};
+```
+
+#### Key behaviour rules to preserve when porting
+
+1. **One fail = level → 1, full stop.** A wrong answer (whether timed
+   out, retried, or given up) drops the move's level to 1 immediately;
+   it is *not* deferred until end of session.
+   [Source](https://support.chessable.com/en/articles/9043598-how-does-the-spaced-repetition-scheduling-work).
+2. **Retries do not stack the penalty.** The level is already at 1; a
+   second wrong attempt in the same session does not further degrade
+   the move. (Inferred from the "soft fail" + "max retries"
+   setting semantics — the user is not punished more for struggling,
+   but the level doesn't recover either.)
+3. **After Give Up / Show answer, the user must replay the correct
+   move themselves** before the Next button is enabled. This is the
+   source of most *"auto-answer annoyance"* complaints on the forum;
+   toggling `Enable retry` to **off** with `Max retries = 0` is the
+   community workaround for "pure reveal mode".
+   [Sources](https://www.chessable.com/discussion/thread/169878/solved-turn-off-auto-answer-/old),
+   [forum 1019694](https://www.chessable.com/discussion/thread/1019694/retrying-a-wrong-move/new).
+4. **The retry count is per-move, per-session.** It resets the next
+   time the move comes up for review.
+   **Inferred** from the "max retries" wording.
+5. **No explicit "I knew that" / "I forgot" buttons** like Anki. The
+   trainer's self-grading is **fully observed**: correct on first try
+   → +XP and advance; anything else → fail. There is no manual
+   promotion. (Confirmed by the existing `trainer.js` header comment
+   in this repo: *"No self-rating. Performance is OBSERVED."*)
+6. **No "Hint" button in Review mode.** The `Hint` button referenced
+   in some forum posts only appears in *Learn* mode and only on moves
+   flagged as difficult, where it briefly reveals the next move.
+   [Forum 995334](https://www.chessable.com/discussion/thread/995327/opinions-on-move-trainer-/995334)
+   warns *"Be careful with the hint button. It's easy to use but can
+   give a false impression of progress."* **Inferred** for MT2.
+
+### 13.5 MoveTrainer settings panel (the gear icon)
+
+The MT2 in-trainer settings panel (gear icon) exposes the following
+controls. Listed verbatim from the
+[MattPlaysChess 2024 cheat-sheet](https://mattplayschess.com/chessable-custom-settings-for-tactics)
+and the [Crompton blog post on Chessable](https://www.chessable.com/blog/how-i-went-from-300-to-1500-in-9-months);
+values are the *recommended* values for tactics training.
+
+| Setting | Type | Default | Effect | Source |
+|---|---|---|---|---|
+| **Time up action** | enum | stop_timer | What happens when the per-move timer runs out: `stop_timer` (let the user finish), `show_answer` (reveal and fail), `fail_immediately` (count as wrong) | [MattPlaysChess](https://mattplayschess.com/chessable-custom-settings-for-tactics) |
+| **Enable retry** | bool | on | If off, the first wrong move immediately goes to REVEAL | [forum 169878](https://www.chessable.com/discussion/thread/169878/solved-turn-off-auto-answer-/old) |
+| **Max retries for a mistake** | int | 1 (tactics default) | How many additional attempts before REVEAL is forced. 0 = pure reveal, ∞ = unlimited | [MattPlaysChess](https://mattplayschess.com/chessable-custom-settings-for-tactics) |
+| **Retry action** | enum | stop_timer | Timer behaviour after a wrong answer while retries remain: `stop_timer`, `restart_timer`, `show_answer` | [MattPlaysChess](https://mattplayschess.com/chessable-custom-settings-for-tactics) |
+| **Time up action for retry** | enum | stop_timer | As `Time up action` but for the *retry* timer | [MattPlaysChess](https://mattplayschess.com/chessable-custom-settings-for-tactics) |
+| **Highlight legal moves** | bool | on (forced in MT2) | Highlights squares a piece can move to | [forum 169334](https://www.chessable.com/discussion/thread/169334/solved-highlight-legal-moves-toggle) |
+| **Auto Next** | bool | off | After N variations (10 by default), auto-advance to the next session and show a recap | [forum 1014425](https://www.chessable.com/discussion/thread/1014425/random-review-v2/1014807), [forum 868196](https://www.chessable.com/discussion/thread/868196/auto-next-moved) |
+| **Mute all sounds** | bool | off | Global; lives in *Settings → Study*, not the MT panel | [forum 335787](https://www.chessable.com/discussion/thread/335787/how-can-i-switch-on-the-sound-i-cant-find-it-in-settings) |
+
+### 13.6 Trainer UI controls and what they do (canonical reference)
+
+| Control | Where | Behaviour | Source |
+|---|---|---|---|
+| **Gear icon (⚙)** | Below the comment pane | Opens the MT2 settings panel (§13.5) | [MT2 beta blog](https://www.chessable.com/blog/movetrainer-2-0-is-here) |
+| **Pause / Play (⏸ / ▶)** | Top-right of the trainer | Pauses the entire study session without losing progress; play to resume | [Pause feature blog](https://www.chessable.com/blog/pause-study-session-feature-find) |
+| **Exit (×)** | Top-right corner | Triggers a confirmation modal if the current variation is unfinished | [forum 892425](https://www.chessable.com/discussion/thread/892425/exit-movetrainer-popup-question/892475) |
+| **Give up / Show answer** | Appears only after a wrong answer | Reveals the correct move and its comment, then requires the user to play it back | [forum 169878](https://www.chessable.com/discussion/thread/169878/solved-turn-off-auto-answer-/old) |
+| **Next (▶▶)** | Appears only in REVEAL state | Disabled until the user has replayed the correct move at least once | [forum 574141](https://www.chessable.com/discussion/thread/574141/skip-the-next-button) |
+| **Analysis board (♚+)** | Below the comment pane | Opens a full engine-eval board in a new tab | [Chessentials](https://chessentials.com/chessable-honest-review) |
+| **Flip board (↻)** | Board controls | Rotates 180°; the user reports this opens the rotation in a *new* window in MT2 (legacy) | [forum 24562](https://www.chessable.com/discussion/thread/24562/flip-board-during-move-trainer) |
+| **Variation name (click)** | Above the board | Opens the read-only "Variation Explorer" for the current line (shows all annotations and side-variations) | [How to browse for/learn-review a variation](https://support.chessable.com/en/articles/9019959-how-do-i-browse-for-and-learn-review-a-certain-variation) |
+| **Comment / annotation pane** | Below the board | In *Learn*: shows the comment for the next move. In *Review*: hidden until the user gets it wrong, then shown. | [Chessentials](https://chessentials.com/chessable-honest-review) |
+| **Blue square highlight** | Board | Highlights the opponent's last move (toggleable, MT1; less so MT2) | [forum 61240](https://www.chessable.com/discussion/thread/61240/last-move-highlight-optional) |
+| **Coloured arrows/circles (in the comment pane's PGN)** | Comment area | Author's annotation overlays. Convention: **Blue** = standard plan, **Yellow/Green** = alternative plan, **Red** = opponent threat / must-not | [What do the colored arrows mean?](https://support.chessable.com/en/articles/9038703-what-do-the-colored-arrows-and-circles-mean-in-movetrainer) |
+| **Sound (🔊)** | Settings → Study | High-pitched "correct"/"wrong" tones; commonly muted | [forum 796588](https://www.chessable.com/discussion/thread/796588/options-to-change-sound-of-move-trainer) |
+| **Recap screen** | End of session | XP earned, accuracy %, accuracy bar; the `Auto Next` recap is shown after 10 variations | [forum 1014425](https://www.chessable.com/discussion/thread/1014425/random-review-v2/1014807) |
+| **Hint** *(Learn mode only, **Inferred**)* | Bottom of comment pane | Briefly reveals the next move; flagged as bad practice in the community | [forum 995334](https://www.chessable.com/discussion/thread/995327/opinions-on-move-trainer-/995334) |
+
+### 13.7 Per-course-type practice differences
+
+The **MoveTrainer is the same engine** for every course type. The
+differences are entirely in:
+
+- how the PGN is structured (one move per side vs. whole line per side),
+- what the soft-fail window is,
+- whether the trainer plays the opponent's moves for you, and
+- which "Course setting" defaults make sense.
+
+| Course type | Trainer behaviour | Key move structure | Soft-fail window | Author's typical setting |
+|---|---|---|---|---|
+| **Openings** | Plays opponent's moves automatically; user only plays their own side. Variations often have **Key Moves** so the trainer starts mid-line ([What are key moves?](https://support.chessable.com/en/articles/9043751-what-are-key-moves)). | Mainline + sub-variations; clickable sub-variations now trainable ([blog: Subvariations trainable](https://www.chessable.com/blog/train-any-line-you-want-subvariations-are-now-trainable/)) | ≤ 0.3 eval margin (engine-equivalent transpositions) | Study = Key Moves; Review = Whole Variation; Soft-fail = retry |
+| **Tactics** | Each variation is one puzzle. Initial position is shown, user plays the **first move** of the solution. The trainer plays the rest of the line, then asks the user to play the opponent's replies until the puzzle is complete. Validation per move. | Each puzzle is a single variation; no key moves | ≤ 1.0 eval (per §10 of the original doc) | Time = 8–60 s; **Tactics = "Solve problem"** (must find first move correctly before seeing the rest); Reps = 1 |
+| **Endgames** | Same as openings structurally — a contiguous line of moves from a starting FEN. The 100 Endgames course adds 6-men tablebase **blunder lines as separate trainable variations** and an "alternative moves" feature that accepts any tablebase-equivalent move and refreshes the timer ([blog: Endgame training](https://www.chessable.com/blog/endgame-training-with-100-endgames-you-must-know)). | Each endgame as one variation; alternative-blunder variations are siblings | Tablebase-equivalent (any move that preserves the outcome) | Same as openings; sometimes "All moves" instead of "Key moves" |
+| **Middlegame / Strategy** | Variable. Some courses (e.g. "Common Chess Patterns") use the openings flow — single line, user plays their side. Others (e.g. "Improve Your Chess Calculation") use the tactics flow — one puzzle per variation with multi-move solutions. | Mixed; depends on the author's PGN layout | 0.3 for typical plans, 1.0 for concrete calculation | Benner (superuser) recommends Key Moves + Whole Variation for strategy courses that have a recommended plan ([Dr Can podcast, 2024](https://www.youtube.com/watch?v=WtbahzU0SAA)) |
+
+#### "Whole Variation" vs "Randomized" — what the user actually sees
+
+**Whole Variation** (the new default, [blog](https://www.chessable.com/blog/review-whole-variation-chessables-new-default-setting-mean)):
+
+- The trainer picks the due move in the variation **and** queues the
+  rest of the variation along with it.
+- Every move of the variation is presented, in order, but only the
+  moves actually *due* earn XP. The rest are tagged **Overstudy** and
+  auto-advance.
+- Feels like playing through a real game; matches the way the line will
+  appear in practice.
+
+**Randomized** (the old default, still selectable per course):
+
+- The trainer picks a single due move at random from the entire due
+  queue.
+- The user has to re-orient to the position from scratch each time.
+- Useful for *very* well-known material; can be configured to serve up
+  to 100 moves in one session.
+
+The setting is found in the *Book Defaults* box on the chapter/variation
+list (right side on desktop, bottom on mobile).
+
+### 13.8 In-course navigation
+
+From [support: chapter options](https://support.chessable.com/en/articles/9038704-where-do-i-find-the-chapter-options-and-what-do-they-mean)
+and [support: how to browse for/learn-review a variation](https://support.chessable.com/en/articles/9019959-how-do-i-browse-for-and-learn-review-a-certain-variation).
+
+- The course landing page is a **chapter list**. Each chapter shows a
+  progress bar, number of variations, and (in MT2) three coloured
+  buttons: **Learn**, **Overstudy**, **Review**.
+- Clicking a chapter expands its variations. Each variation has its
+  own **Learn** / **Review** buttons, or you can click the variation
+  name to open it in the read-only Variation Explorer.
+- The dashboard's **Learn Next** / **Review** buttons start a global
+  session that walks every due card in priority order.
+- Chapter options (below the list) are:
+  - **Pause all variations** — removes every variation in the chapter
+    from both the review queue and the default learning sequence.
+  - **Delete my progress** — irreversible. Treats every move as new.
+  - **Fast-forward time (FFT)** — schedules all *learned* moves in
+    the chapter for immediate review (consumes a Ruby).
+- Course-level options (right side, "Book Defaults") include Whole vs
+  Randomized, Key vs All moves, soft-fail policy, schedule override.
+
+### 13.9 What Learn mode actually shows vs what Review mode hides
+
+| Element | Learn mode | Review mode |
+|---|---|---|
+| Opponent's previous move | Auto-played for you | **Not** shown; only the position is shown |
+| Next-move comment / annotation | Shown before the move | Hidden until you fail; then shown |
+| Coloured arrows/circles (Blue/Yellow/Red) | Shown with the comment | Hidden until you fail |
+| Variation name (above the board) | Shown | Shown |
+| Legal-move highlighting (board) | Same as Review (configurable) | Same (configurable) |
+| Variation Explorer (read-only) | Always one click away | Always one click away |
+| Re-quiz at end of variation | Yes, on missed moves only | No — the whole variation is graded in one pass (when *Whole Variation* is on) |
+| SRS effect | Marks moves you actually *had* to replay | Marks every move in the variation (Overstudy for those not due) |
+
+(Reconstructed from [Chessentials](https://chessentials.com/chessable-honest-review),
+[forum 828556](https://www.chessable.com/discussion/thread/828448/movetrainer-for-memorization-good-for-learning-terrible/828556),
+and Andy Matuschak's working notes
+[notes.andymatuschak.org](https://notes.andymatuschak.org/zDr94hP6bG3jJYrdYy8B5hx).)
+
+### 13.10 Implementation notes for `web/js/trainer.js`
+
+The existing `trainer.js` (header comment already notes *"No self-rating.
+Performance is OBSERVED."*) has the right shape but the wrong-move
+path is implicit. To match Chessable:
+
+1. Add the `retryCount`, `state`, `gaveUp`, `replayVerified` fields
+   from the pseudocode in §13.4.
+2. Wire the per-move timer to `onTimerExpire()` and route it through
+   the two `timeUpAction` settings.
+3. Add the **REVEAL** state and explicitly disable auto-advance until
+   `replayVerified` is true. This is the single behaviour change that
+   will most affect how Open-Chessable *feels*.
+4. Honor the soft-fail list (already in the data model) by checking
+   `card.soft_fail_alternates` in `isExpectedMove`.
+5. Add a setting panel (mirroring §13.5) — at minimum the three
+   retry-related controls, since they are what every power-user
+   immediately customises.
+6. Track `Overstudy` separately from `correct`/`wrong` so the recap
+   screen can show the three categories distinctly.
+7. *Inferred:* the "must replay after reveal" rule is what causes the
+   "Exit MoveTrainer popup" complaint — preserving it means a
+   confirmation modal on exit is also needed.
+
+### 13.11 Source map
+
+Primary sources used in this section (all consulted in full where
+reachable; many chessable.com forum threads return 403 to bots and
+were triangulated from snippets in search results and from the
+quoted-in-elsewhere material):
+
+- Chessable support docs:
+  - [How does the spaced repetition scheduling work?](https://support.chessable.com/en/articles/9043598-how-does-the-spaced-repetition-scheduling-work)
+  - [How do I browse for and learn/review a certain variation?](https://support.chessable.com/en/articles/9019959-how-do-i-browse-for-and-learn-review-a-certain-variation)
+  - [Where do I find the chapter options? And what do they mean?](https://support.chessable.com/en/articles/9038704-where-do-i-find-the-chapter-options-and-what-do-they-mean)
+  - [Review 'Whole Variation' vs 'Randomized'](https://support.chessable.com/en/articles/9047490-review-whole-variation-vs-randomized)
+  - [What are key moves?](https://support.chessable.com/en/articles/9043751-what-are-key-moves)
+  - [What do the colored arrows and circles mean in MoveTrainer®?](https://support.chessable.com/en/articles/9038703-what-do-the-colored-arrows-and-circles-mean-in-movetrainer)
+  - [What are soft fail moves?](https://support.chessable.com/en/articles/9043806-what-are-soft-fail-moves)
+  - [What is the schedule setting?](https://support.chessable.com/en/articles/9043243-what-is-the-schedule-setting)
+- Chessable blog posts:
+  - [Review as "whole variation" is Chessable's new default](https://www.chessable.com/blog/review-whole-variation-chessables-new-default-setting-mean)
+  - [MoveTrainer 2.0 – Open Beta](https://www.chessable.com/blog/movetrainer-2-0-open-beta)
+  - [MoveTrainer 2.0 is here](https://www.chessable.com/blog/movetrainer-2-0-is-here)
+  - [The pause study session feature is here](https://www.chessable.com/blog/pause-study-session-feature-find)
+  - [Endgame training with 100 Endgames You Must Know](https://www.chessable.com/blog/endgame-training-with-100-endgames-you-must-know)
+  - [How I went from 300 to 1500 in 9 months](https://www.chessable.com/blog/how-i-went-from-300-to-1500-in-9-months) (Alex Crompton)
+  - [Train any line you want: subvariations now trainable](https://www.chessable.com/blog/train-any-line-you-want-subvariations-are-now-trainable/)
+- Third-party walkthroughs / settings references:
+  - [MattPlaysChess 2024 — Custom Settings for Tactics](https://mattplayschess.com/chessable-custom-settings-for-tactics) ← **most detailed** enumeration of the MT2 settings panel
+  - [Chessentials 2019 — Is Chessable all it's cracked up to be?](https://chessentials.com/chessable-honest-review) ← clearest description of Learn vs Review presentation
+  - [Zwischenzug — How to use Chessable](https://www.zwischenzug.gg/p/how-to-use-chessable)
+  - [Andy Matuschak working notes — Chessable MoveTrainer](https://notes.andymatuschak.org/zDr94hP6bG3jJYrdYy8B5hx)
+- Forum threads (chessable.com/discussion/thread/…):
+  - 574141 — "Skip the Next Button" — the Next button only exists after reveal
+  - 892425 — "Exit MoveTrainer popup question" — confirmation modal on exit
+  - 169334 — Highlight legal moves toggle (forced-on in MT2)
+  - 828556 / 828448 — Learn mode re-plays missed moves
+  - 995334 / 995327 — Hint button warning
+  - 1014425 / 1014807 — Auto Next after 10 variations
+  - 868196 — Auto Next moved into MT2 settings
+  - 169878 / 169874 — Disable auto-answer (turn off Enable retry)
+  - 1019694 — Retrying a wrong move (max retries setting)
+  - 24562 — Flip board during Move Trainer
+  - 61240 — Last-move highlight (toggleable)
+  - 796588 — Options to change MoveTrainer sound
+  - 335787 — Mute all sounds (global setting path)
+  - 304330 — Commenting while learning/reviewing
+  - 416007 — Don't show correct move
+  - 751067 — Restart function (settings)
+  - 5406 / 120050 — Pause option for chapters
+  - 103908 / 8878 — Study / play both sides
+  - 163432 — Learn button re-use after completion
+  - 1132533 — Informational lines
+  - 9043373 — Quickstarter variations
+  - 9028513 — Course options
+  - 9043383 — Fast-forward time
+- Video walkthroughs (referenced, not transcribed):
+  - [MoveTrainer 2.0 ft. Dark Mode! by John Bartholomew (Apr 2020)](https://www.youtube.com/watch?v=bJiaLhLlbEw)
+  - [Customizing Your Learning on Chessable (Mar 2024)](https://www.youtube.com/watch?v=deQPIY4Bk7I)
+  - [Chessable Superuser Reveals Secrets (Sep 2024)](https://www.youtube.com/watch?v=WtbahzU0SAA)
+

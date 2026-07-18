@@ -19,6 +19,7 @@ from openchessable import (
     get_chapters,
     delete_chapter,
     import_pgn_to_chapter,
+    import_course_pgn,
     get_due_moves,
     get_learn_queue,
     get_move,
@@ -105,6 +106,38 @@ def api_delete_chapter(chapter_id):
 
 
 # ─── PGN Import API ─────────────────────────────────────────────────────
+
+@app.route("/api/courses/<int:course_id>/import-course-pgn", methods=["POST"])
+def api_import_course_pgn(course_id):
+    """Import a full multi-chapter course PGN.
+
+    Accepts JSON {'pgn': str, 'chapter_tag': 'White'|'Black'} or file upload.
+    Groups games into chapters by the chosen tag.
+    """
+    pgn_text = ""
+    chapter_tag = "White"
+
+    if request.is_json:
+        data = request.get_json() or {}
+        pgn_text = data.get("pgn", "")
+        chapter_tag = data.get("chapter_tag", "White")
+    elif request.files and "file" in request.files:
+        pgn_text = request.files["file"].read().decode("utf-8", errors="replace")
+        chapter_tag = request.form.get("chapter_tag", "White")
+    else:
+        return jsonify({"error": "Provide 'pgn' in JSON body or 'file' in form-data"}), 400
+
+    if not pgn_text.strip():
+        return jsonify({"error": "PGN text is empty"}), 400
+
+    try:
+        result = import_course_pgn(course_id, pgn_text, chapter_tag=chapter_tag)
+        if "error" in result:
+            return jsonify(result), 400
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({"error": f"Course PGN import failed: {str(e)}"}), 400
+
 
 @app.route("/api/chapters/<int:chapter_id>/import-pgn", methods=["POST"])
 def api_import_pgn(chapter_id):

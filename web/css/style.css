@@ -759,3 +759,164 @@ a:hover { color: var(--accent-hover); }
   .modal-content { min-width: auto; margin: 16px; }
   .board-svg { max-width: 340px; }
 }
+
+/* ─── Trainer v2 (Chessable MT-style) ───────────────────── */
+
+.page-trainer { max-width: 720px; }
+
+.trainer-toolbar {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.trainer-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+}
+
+.trainer-progress {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.trainer-counter {
+  font-family: var(--font-mono);
+  color: var(--text-body);
+}
+
+.trainer-breadcrumb {
+  color: var(--text-subtle);
+  max-width: 300px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.trainer-level {
+  font-size: 12px;
+  padding: 1px 8px;
+  border-radius: var(--radius-pill);
+  background: rgba(94,106,210,0.15);
+  color: var(--accent-bright);
+  border: 1px solid rgba(94,106,210,0.25);
+}
+
+.trainer-prompt {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 16px;
+}
+
+.trainer-prompt-text { color: var(--text-muted); }
+
+.trainer-feedback {
+  min-height: 72px;
+  text-align: center;
+}
+
+.trainer-actions { min-height: 32px; }
+
+.feedback-correct .feedback-icon {
+  font-size: 28px;
+  color: var(--green-bright);
+  line-height: 1;
+}
+
+.feedback-correct .feedback-move {
+  font-size: 22px;
+  font-weight: 590;
+  color: var(--green-bright);
+  letter-spacing: -0.3px;
+}
+
+.feedback-xp {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.feedback-wrong .feedback-icon {
+  font-size: 24px;
+  color: var(--red);
+  line-height: 1;
+}
+
+.feedback-wrong .feedback-msg {
+  font-size: 16px;
+  font-weight: 510;
+  color: var(--red);
+}
+
+.feedback-hint {
+  font-size: 13px;
+  color: var(--text-subtle);
+  margin-top: 2px;
+}
+
+.feedback-reveal .feedback-move-reveal {
+  font-size: 26px;
+  font-weight: 590;
+  color: var(--yellow);
+  letter-spacing: -0.3px;
+}
+
+.advancing-hint {
+  font-size: 12px;
+  color: var(--text-subtle);
+}
+
+/* Board shake animation on wrong move */
+@keyframes boardShake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-6px); }
+  40% { transform: translateX(6px); }
+  60% { transform: translateX(-4px); }
+  80% { transform: translateX(4px); }
+}
+
+.board-shake {
+  animation: boardShake 0.4s ease;
+  filter: drop-shadow(0 0 12px rgba(229, 72, 77, 0.4));
+}
+
+/* Session recap */
+.session-recap { padding-top: 40px; }
+
+.recap-stats {
+  display: flex;
+  gap: 20px;
+  margin: 24px 0;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.recap-stat {
+  text-align: center;
+  min-width: 80px;
+}
+
+.recap-value {
+  font-size: 32px;
+  font-weight: 590;
+  color: var(--text-primary);
+  letter-spacing: -0.5px;
+}
+
+.recap-stat.accent .recap-value { color: var(--accent-bright); }
+
+.recap-label {
+  font-size: 12px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-top: 4px;
+}
+
+.session-recap .btn { margin: 4px; }

@@ -40,6 +40,8 @@ from .course_manager import (
     get_chapters,
     delete_chapter,
     import_pgn_to_chapter,
+    import_course_pgn,
+    split_pgn_games,
     get_due_moves,
     get_learn_queue,
     get_move,
@@ -75,7 +77,7 @@ __all__ = [
     # Course management
     "create_course", "get_courses", "get_course", "update_course", "delete_course",
     "create_chapter", "get_chapters", "delete_chapter",
-    "import_pgn_to_chapter",
+    "import_pgn_to_chapter", "import_course_pgn", "split_pgn_games",
     "get_due_moves", "get_learn_queue",
     "get_move", "update_move_review", "apply_review_to_move",
     "get_stats",
