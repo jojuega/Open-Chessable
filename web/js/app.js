@@ -19,7 +19,13 @@ const App = {
 
     // Handle hash changes
     window.addEventListener('hashchange', () => this.route());
-    
+
+    // Preload chess piece SVGs (in parallel with first render) so the first
+    // board paint never shows empty squares.
+    if (typeof Board !== 'undefined' && Board.preloadPieces) {
+      Board.preloadPieces().catch(err => console.warn('Piece preload:', err));
+    }
+
     // Initial route
     this.route();
 
