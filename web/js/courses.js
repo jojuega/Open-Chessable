@@ -112,7 +112,6 @@ const Courses = {
                 </div>
                 <div style="display:flex;gap:8px;align-items:center;">
                   ${ch.video_url ? `<span class="badge">📹</span>` : ''}
-                  <button class="btn btn-ghost btn-sm" onclick="Courses.showImportPgnModal(${ch.id}, '${this.escapeHtml(ch.name)}')">Import PGN</button>
                   <button class="btn btn-danger btn-sm" onclick="Courses.deleteChapter(${ch.id}, ${courseId})">✕</button>
                 </div>
               </div>`).join('')}
@@ -224,57 +223,6 @@ const Courses = {
         App.closeModal();
         App.toast('Chapter added!', 'success');
         App.navigate('course', courseId);
-      } catch (err) {
-        App.toast(err.message, 'error');
-      }
-    };
-  },
-
-  showImportPgnModal(chapterId, chapterName) {
-    const modal = document.getElementById('modal-overlay');
-    const content = document.getElementById('modal-content');
-    
-    content.innerHTML = `
-      <div class="modal-header">
-        <h2 class="modal-title">Import PGN — ${chapterName}</h2>
-        <button class="modal-close" onclick="App.closeModal()">✕</button>
-      </div>
-      <div class="form-group">
-        <label class="form-label">Upload PGN File</label>
-        <input type="file" class="form-input" id="modal-pgn-file" accept=".pgn" style="padding:8px;">
-      </div>
-      <div class="form-group">
-        <label class="form-label">Or paste PGN text</label>
-        <textarea class="form-textarea" id="modal-pgn-text" placeholder="1. e4 e5 2. Nf3 Nc6&#10;(2... Nf6 3. Nxe5 d6)&#10;3. Bb5 a6 *" rows="8"></textarea>
-      </div>
-      <div class="modal-actions">
-        <button class="btn btn-secondary" onclick="App.closeModal()">Cancel</button>
-        <button class="btn btn-primary" id="modal-import-btn">Import</button>
-      </div>
-    `;
-    modal.classList.remove('hidden');
-
-    document.getElementById('modal-import-btn').onclick = async () => {
-      const fileInput = document.getElementById('modal-pgn-file');
-      const textInput = document.getElementById('modal-pgn-text').value.trim();
-      
-      try {
-        let result;
-        if (fileInput.files.length > 0) {
-          result = await API.importPgnFile(chapterId, fileInput.files[0]);
-        } else if (textInput) {
-          result = await API.importPgn(chapterId, textInput);
-        } else {
-          return App.toast('Provide a PGN file or paste PGN text', 'error');
-        }
-        
-        App.closeModal();
-        App.toast(`Imported ${result.imported} moves (${result.skipped_duplicates} duplicates skipped)`, 'success');
-        
-        // Refresh current course view if on it
-        if (Courses.currentCourseId) {
-          App.navigate('course', Courses.currentCourseId);
-        }
       } catch (err) {
         App.toast(err.message, 'error');
       }

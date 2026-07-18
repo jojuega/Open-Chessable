@@ -101,6 +101,30 @@ const API = {
 
   // ─── PGN Import ────────────────────────────────
 
+  // ─── Full Course PGN Import ─────────────────────
+
+  async importCoursePgn(courseId, pgnText, chapterTag = 'White') {
+    return this._fetch(`${this.base}/courses/${courseId}/import-course-pgn`, {
+      method: 'POST',
+      body: JSON.stringify({ pgn: pgnText, chapter_tag: chapterTag }),
+    });
+  },
+
+  async importCoursePgnFile(courseId, file, chapterTag = 'White') {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('chapter_tag', chapterTag);
+    const res = await fetch(`${this.base}/courses/${courseId}/import-course-pgn`, {
+      method: 'POST',
+      body: formData,
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+    return data;
+  },
+
+  // ─── Chapter PGN Import ─────────────────────────
+
   async importPgn(chapterId, pgnText) {
     return this._fetch(`${this.base}/chapters/${chapterId}/import-pgn`, {
       method: 'POST',
