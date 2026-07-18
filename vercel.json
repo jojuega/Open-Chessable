@@ -5,10 +5,7 @@
   "cleanUrls": true,
   "trailingSlash": false,
   "rewrites": [
-    { "source": "/", "destination": "/web/index.html" },
-    { "source": "/js/(.*)", "destination": "/web/js/$1" },
-    { "source": "/css/(.*)", "destination": "/web/css/$1" },
-    { "source": "/assets/(.*)", "destination": "/web/assets/$1" }
+    { "source": "/(.*)", "destination": "/index.html" }
   ],
   "headers": [
     {
