@@ -484,7 +484,12 @@ def get_learn_queue(
     if key_only:
         query += " AND COALESCE(m.key_move, 0) = 1"
 
-    query += " ORDER BY ch.sort_order, m.id LIMIT ?"
+    # Smart learn queue: order by chapter, then by the FEN's move depth
+    # (halfmoves from root) so shorter / earlier positions come first.
+    # Cards sharing the same prefix tree naturally cluster: a position
+    # at move 3 comes before its continuation at move 12.  We approximate
+    # depth with move_number which the parser sets to ply-from-root.
+    query += " ORDER BY ch.sort_order, m.move_number, m.id LIMIT ?"
     params.append(limit)
 
     moves = dicts_from_rows(conn.execute(query, params).fetchall())

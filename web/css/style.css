@@ -919,4 +919,110 @@ a:hover { color: var(--accent-hover); }
   margin-top: 4px;
 }
 
+.recap-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-top: 8px;
+}
+
 .session-recap .btn { margin: 4px; }
+
+/* ─── Trainer line breadcrumb (variation path so far) ─────────────── */
+.trainer-line {
+  font-family: 'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace;
+  font-size: 12px;
+  color: var(--text-muted);
+  background: var(--bg-secondary, #16161a);
+  border: 1px solid var(--border-subtle, #26262b);
+  border-radius: 6px;
+  padding: 6px 10px;
+  margin: 4px auto 10px;
+  max-width: 560px;
+  white-space: nowrap;
+  overflow-x: auto;
+  text-overflow: ellipsis;
+}
+
+/* ─── Trainer author comment ──────────────────────────────────────── */
+.trainer-comment {
+  margin: 14px auto 0;
+  max-width: 560px;
+  background: var(--bg-secondary, #16161a);
+  border: 1px solid var(--border-subtle, #26262b);
+  border-left: 3px solid var(--accent-bright, #6e9fff);
+  border-radius: 8px;
+  padding: 10px 14px;
+  text-align: left;
+}
+
+.trainer-comment summary {
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 590;
+  color: var(--text-secondary, #a8a8b3);
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  list-style: none;
+  user-select: none;
+}
+
+.trainer-comment summary::-webkit-details-marker { display: none; }
+
+.trainer-comment summary::before {
+  content: '▸ ';
+  color: var(--accent-bright, #6e9fff);
+}
+
+.trainer-comment[open] summary::before { content: '▾ '; }
+
+.trainer-comment-body {
+  margin-top: 10px;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--text-primary, #f2f2f5);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* ─── Clickable move fragments inside author comments ─────────────── */
+.cm-line {
+  display: inline-block;
+  padding: 1px 5px;
+  margin: 0 1px;
+  background: rgba(110, 159, 255, 0.12);
+  border: 1px solid rgba(110, 159, 255, 0.35);
+  border-radius: 4px;
+  color: var(--accent-bright, #6e9fff);
+  font-family: 'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace;
+  font-size: 12.5px;
+  cursor: pointer;
+  transition: background 0.12s ease, border-color 0.12s ease;
+  white-space: nowrap;
+}
+
+.cm-line:hover {
+  background: rgba(110, 159, 255, 0.22);
+  border-color: rgba(110, 159, 255, 0.6);
+}
+
+.feedback-comment-line {
+  text-align: center;
+  padding: 10px 14px;
+  background: rgba(110, 159, 255, 0.08);
+  border: 1px solid rgba(110, 159, 255, 0.3);
+  border-radius: 8px;
+  color: var(--accent-bright, #6e9fff);
+}
+
+.feedback-comment-line .feedback-msg { font-weight: 590; }
+.feedback-comment-line .feedback-hint {
+  font-family: 'SF Mono', Menlo, monospace;
+  font-size: 12.5px;
+  opacity: 0.85;
+  margin-top: 4px;
+}
+
+/* ─── Mode select in toolbar ──────────────────────────────────────── */
+.trainer-toolbar .form-select { min-width: 130px; }

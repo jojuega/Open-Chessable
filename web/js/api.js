@@ -87,6 +87,14 @@ const API = {
     return this._fetch(`${this.base}/trainer/due?${params}`);
   },
 
+  getLearnQueue(courseId = null, side = null, limit = 50) {
+    const params = new URLSearchParams();
+    if (courseId) params.set('course_id', courseId);
+    if (side) params.set('side', side);
+    if (limit) params.set('limit', limit);
+    return this._fetch(`${this.base}/trainer/learn?${params}`);
+  },
+
   getMove(moveId) {
     return this._fetch(`${this.base}/trainer/move/${moveId}`);
   },

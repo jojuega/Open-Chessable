@@ -80,6 +80,79 @@ const Board = {
   },
 
   /**
+   * Apply a UCI move to the current FEN, WITHOUT legality checking.
+   * Used to replay comment fragments (which may be illegal in context)
+   * purely for visualisation.  Handles captures, castling, promotion,
+   * and en-passant removal.  The move counters / side-to-move are
+   * flipped at the end.
+   */
+  applyUCI(uci) {
+    if (!uci || uci.length < 4) return;
+    const from = this.algebraicToIndex(uci.slice(0, 2));
+    const to = this.algebraicToIndex(uci.slice(2, 4));
+    const promo = uci[4] || null;
+
+    const parts = this.fen.split(' ');
+    const board = this.parseBoard();
+    let piece = board[from];
+    if (!piece) return;
+
+    const isWhite = piece === piece.toUpperCase();
+    const fromRank = Math.floor(from / 8);
+    const fromFile = from % 8;
+    const toRank = Math.floor(to / 8);
+    const toFile = to % 8;
+
+    // En-passant capture: pawn moves diagonally to an empty square
+    if (piece.toLowerCase() === 'p' && fromFile !== toFile && !board[to]) {
+      const capSq = toRank * 8 + fromFile;
+      board[capSq] = null;
+    }
+
+    // Castling: king moves two squares → move the rook too
+    if (piece.toLowerCase() === 'k' && Math.abs(toFile - fromFile) === 2) {
+      if (toFile === 6) { // king side
+        board[fromRank * 8 + 5] = board[fromRank * 8 + 7];
+        board[fromRank * 8 + 7] = null;
+      } else if (toFile === 2) { // queen side
+        board[fromRank * 8 + 3] = board[fromRank * 8 + 0];
+        board[fromRank * 8 + 0] = null;
+      }
+    }
+
+    // Promotion
+    if (promo && piece.toLowerCase() === 'p') {
+      piece = isWhite ? promo.toUpperCase() : promo.toLowerCase();
+    }
+
+    board[to] = piece;
+    board[from] = null;
+
+    // Rebuild FEN board portion
+    let fenBoard = '';
+    for (let rank = 0; rank < 8; rank++) {
+      let empty = 0;
+      for (let file = 0; file < 8; file++) {
+        const p = board[rank * 8 + file];
+        if (p) {
+          if (empty) { fenBoard += empty; empty = 0; }
+          fenBoard += p;
+        } else {
+          empty++;
+        }
+      }
+      if (empty) fenBoard += empty;
+      if (rank < 7) fenBoard += '/';
+    }
+
+    const nextSide = (parts[1] === 'w') ? 'b' : 'w';
+    const moveNum = parseInt(parts[5] || '1', 10);
+    const nextMoveNum = nextSide === 'w' ? moveNum + 1 : moveNum;
+
+    this.fen = `${fenBoard} ${nextSide} ${parts[2] || '-'} ${parts[3] || '-'} 0 ${nextMoveNum}`;
+  },
+
+  /**
    * Generate a simple list of legal moves from FEN.
    * This is NOT a full legal-move generator — it renders pseudo-legal
    * moves for the clicked piece so the user can click a target.
