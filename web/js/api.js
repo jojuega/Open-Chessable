@@ -91,12 +91,12 @@ const API = {
     return this._fetch(`${this.base}/trainer/move/${moveId}`);
   },
 
-  async reviewMove(moveId, quality = null, attempts = 1, gotRight = true) {
+  async reviewMove(moveId, outcome = 'correct', attempts = 1, gotRight = true) {
     return this._fetch(`${this.base}/trainer/review`, {
       method: 'POST',
       body: JSON.stringify({ 
         move_id: moveId, 
-        quality: quality,
+        outcome: outcome,
         attempts: attempts,
         got_right: gotRight,
       }),

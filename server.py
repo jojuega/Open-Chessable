@@ -20,11 +20,10 @@ from openchessable import (
     delete_chapter,
     import_pgn_to_chapter,
     get_due_moves,
+    get_learn_queue,
     get_move,
-    update_move_review,
-    review_move,
+    apply_review_to_move,
     get_stats,
-    get_quality_label,
 )
 
 app = Flask(__name__, static_folder="web", static_url_path="")
@@ -145,30 +144,56 @@ def api_get_due_moves():
     return jsonify(moves)
 
 
+@app.route("/api/trainer/learn", methods=["GET"])
+def api_get_learn_queue():
+    """Get moves that haven't been learned yet (Learn queue)."""
+    course_id = request.args.get("course_id", type=int)
+    side = request.args.get("side")
+    chapter_id = request.args.get("chapter_id", type=int)
+    limit = request.args.get("limit", 50, type=int)
+    
+    moves = get_learn_queue(course_id=course_id, side=side, chapter_id=chapter_id, limit=limit)
+    return jsonify(moves)
+
+
 @app.route("/api/trainer/review", methods=["POST"])
 def api_review_move():
+    """Submit a review outcome for a move.
+    
+    Supports both Chessable (outcome-based) and SM-2 (quality-based) review.
+    - Chessable: send outcome="correct"|"wrong"|"soft_fail"
+    - SM-2: send quality=0..5, attempts, got_right
+    """
     data = request.get_json() or {}
     move_id = data.get("move_id")
-    quality = data.get("quality")  # Optional — auto-calculated if None
+    outcome = data.get("outcome")  # Chessable: "correct", "wrong", "soft_fail"
+    quality = data.get("quality")  # SM-2: 0-5 (auto-calculated if using Chessable mode)
     attempts = data.get("attempts", 1)
     got_right = data.get("got_right", True)
     
     if move_id is None:
         return jsonify({"error": "move_id is required"}), 400
     
-    # Validate quality if provided explicitly
     if quality is not None and (not isinstance(quality, int) or quality < 0 or quality > 5):
         return jsonify({"error": "quality must be an integer 0-5"}), 400
     
-    move = get_move(move_id)
-    if not move:
-        return jsonify({"error": "Move not found"}), 404
+    try:
+        updated_move = apply_review_to_move(
+            move_id,
+            outcome=outcome,
+            quality=quality,
+            attempts=attempts,
+            got_right=got_right,
+        )
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
     
-    updated_srs = review_move(move, quality=quality, attempts=attempts, got_right=got_right)
-    updated_move = update_move_review(move_id, updated_srs)
+    if updated_move is None:
+        return jsonify({"error": "Move not found"}), 404
     
     return jsonify({
         "move": updated_move,
+        "outcome": outcome,
         "attempts": attempts,
         "got_right": got_right,
     })

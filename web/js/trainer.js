@@ -281,8 +281,9 @@ const Trainer = {
 
   async submitReview() {
     const move = this.currentMove;
+    const outcome = this.correctAnswered ? 'correct' : 'wrong';
     try {
-      await API.reviewMove(move.id, null, this.attempts, this.correctAnswered);
+      await API.reviewMove(move.id, outcome, this.attempts, this.correctAnswered);
     } catch (err) {
       console.error('Review API error:', err);
     }
