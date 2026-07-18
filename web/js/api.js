@@ -4,7 +4,37 @@
  */
 
 const API = {
-  base: '/api',
+  // ─── Backend base URL ─────────────────────────────────────────────
+  // Resolution order:
+  //   1. ?api=https://backend.example.com   (URL param, persisted)
+  //   2. localStorage 'oc_api_base'         (previously saved)
+  //   3. window.OC_API_BASE                 (injected by host page)
+  //   4. http://localhost:5000/api          (default local backend)
+  //
+  // This lets the frontend be hosted statically (Vercel / GitHub Pages)
+  // while the Flask backend runs locally on the user's own machine.
+  base: (() => {
+    try {
+      const url = new URL(window.location.href);
+      const fromParam = url.searchParams.get('api');
+      if (fromParam) {
+        const clean = fromParam.replace(/\/$/, '') + '/api';
+        localStorage.setItem('oc_api_base', clean);
+        return clean;
+      }
+    } catch (e) { /* ignore */ }
+    const stored = localStorage.getItem('oc_api_base');
+    if (stored) return stored;
+    if (window.OC_API_BASE) return window.OC_API_BASE.replace(/\/$/, '');
+    return 'http://localhost:5000/api';
+  })(),
+
+  /** Override the backend URL at runtime and persist it. */
+  setBase(url) {
+    const clean = url.replace(/\/$/, '') + (url.endsWith('/api') ? '' : '/api');
+    this.base = clean;
+    try { localStorage.setItem('oc_api_base', clean); } catch (e) { /* ignore */ }
+  },
 
   async _fetch(url, options = {}) {
     const defaults = {

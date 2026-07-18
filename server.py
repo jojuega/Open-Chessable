@@ -29,6 +29,22 @@ from openchessable import (
 
 app = Flask(__name__, static_folder="web", static_url_path="")
 
+# ─── CORS ─────────────────────────────────────────────────────────────────
+# The frontend can be hosted anywhere (Vercel, GitHub Pages, file://, or
+# served by this same Flask process).  Allow cross-origin API calls from
+# any origin — this is a local-first personal app, the DB never leaves the
+# machine, and there's no auth to leak.
+@app.after_request
+def _cors(response):
+    response.headers["Access-Control-Allow-Origin"] = "*"
+    response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
+    response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
+    return response
+
+@app.route("/api/<path:_any>", methods=["OPTIONS"])
+def _cors_preflight(_any):
+    return "", 204
+
 
 # ─── Static files ──────────────────────────────────────────────────────
 

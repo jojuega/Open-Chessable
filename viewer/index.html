@@ -412,7 +412,7 @@
               <div class="sq dark">♖</div><div class="sq light">♘</div><div class="sq dark">♗</div><div class="sq light">♕</div><div class="sq dark">♔</div><div class="sq light"></div><div class="sq dark">♘</div><div class="sq light">♖</div>
             </div>
             <div class="preview-caption">
-              What is White's best move? <kbd>1</kbd> Again <kbd>2</kbd> Hard <kbd>3</kbd> Good <kbd>4</kbd> Easy
+              What is White's best move? Wrong once → retry. Wrong again → revealed — replay it to continue.
             </div>
           </div>
         </div>
@@ -442,16 +442,24 @@
           <div class="card-icon">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
           </div>
-          <h3>Full PGN import</h3>
-          <p>Drop in any PGN. The parser walks main lines and bracketed variations, creating one learnable card per leaf position with FEN, UCI, and SAN.</p>
+          <h3>Full course PGN import</h3>
+          <p>Drop in a multi-game PGN. Each <code>[White]</code> (or <code>[Black]</code>) tag becomes a chapter. The parser walks every variation tree and deduplicates transpositions — if 3 branches share 12 opening moves, you only train those 12 once.</p>
+        </div>
+
+        <div class="card">
+          <div class="card-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          </div>
+          <h3>Author comments, clickable</h3>
+          <p>Course-author comments render below the board. Move fragments inside them (like <em>"compare 1.d4 d5 2.c4"</em>) are clickable and replay on the main board — even when illegal in context, because authors illustrate ideas, not strict lines.</p>
         </div>
 
         <div class="card">
           <div class="card-icon">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7h18"/><path d="M3 12h18"/><path d="M3 17h12"/></svg>
           </div>
-          <h3>Course management</h3>
-          <p>Organize repertoires into courses and chapters. Filter by color side, track per-chapter due counts, and watch your mastery climb.</p>
+          <h3>Real Chessable training loop</h3>
+          <p>Play the move on the board. Wrong once → shake + retry. Wrong again → the answer is revealed and you must replay it to continue. Wrong answer = card drops to level 1 immediately. No self-rating — the board observes you.</p>
         </div>
 
         <div class="card">
@@ -504,7 +512,7 @@
         </div>
         <div class="step">
           <h4>Watch mastery grow</h4>
-          <p>Intervals stretch from 1 day to 224+ as each move becomes automatic. You only review what matters.</p>
+          <p>Each move climbs 8 levels — 4 hours, 1 day, 3 days, 1 week, 2 weeks, 1 month, 3 months, 6 months. Once at level 8 it's burned in. Transpositions are trained once, never repeated across branches.</p>
         </div>
       </div>
     </div>
@@ -516,7 +524,7 @@
       <div class="section-head">
         <div class="section-eyebrow">Quick start</div>
         <h2>Up and running in 30 seconds.</h2>
-        <p class="section-sub">Requires Python 3.10+. Runs on Linux, macOS, and Windows.</p>
+        <p class="section-sub">Requires Python 3.10+. Runs on Linux, macOS, and Windows. The backend is your database; the frontend is just a UI.</p>
       </div>
 
       <pre class="code"><span class="c"># clone &amp; install</span>
@@ -526,11 +534,25 @@
 <span class="k">source</span> .venv/bin/activate
 <span class="k">pip install</span> -r requirements.txt
 
-<span class="c"># launch the native desktop app</span>
-<span class="k">python</span> app.py
+<span class="c"># launch the backend (serves both API + frontend on :5000)</span>
+<span class="k">python</span> server.py
 
-<span class="c"># …or run headless and open http://127.0.0.1:5000 in any browser</span>
-<span class="k">python</span> server.py</pre>
+<span class="c"># …or run the native desktop app (pywebview window)</span>
+<span class="k">python</span> app.py</pre>
+
+      <div style="max-width:720px;margin:48px auto 0;text-align:left;">
+        <h3 style="margin:0 0 12px;font-size:18px;font-weight:600;">Split frontend / backend</h3>
+        <p style="color:var(--text-mute);font-size:14px;line-height:1.6;margin:0 0 12px;">
+          The frontend is a static SPA — host it on Vercel, GitHub Pages, or any CDN.
+          The Flask backend holds your SQLite database and runs wherever you want
+          (your laptop, a Raspberry Pi, a VM). Point the frontend at any backend:
+        </p>
+        <pre class="code" style="margin:0;"><span class="c"># open the hosted UI and tell it where your backend lives</span>
+https://open-chessable.vercel.app/<span class="p">?api=</span>https://your-tunnel.trycloudflare.com
+
+<span class="c"># expose the local backend through a free tunnel</span>
+<span class="k">cloudflared tunnel</span> --url http://127.0.0.1:5000</pre>
+      </div>
     </div>
   </section>
 
@@ -541,7 +563,8 @@
       <div>
         <a href="https://github.com/jojuega/Open-Chessable">GitHub</a> ·
         <a href="https://github.com/jojuega/Open-Chessable/issues">Issues</a> ·
-        <a href="https://github.com/jojuega/Open-Chessable/blob/main/README.md">Docs</a>
+        <a href="https://github.com/jojuega/Open-Chessable/blob/main/README.md">Docs</a> ·
+        <a href="https://github.com/jojuega/Open-Chessable/blob/main/RESEARCH.md">Research</a>
       </div>
     </div>
   </footer>
