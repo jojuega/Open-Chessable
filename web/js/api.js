@@ -9,10 +9,14 @@ const API = {
   //   1. ?api=https://backend.example.com   (URL param, persisted)
   //   2. localStorage 'oc_api_base'         (previously saved)
   //   3. window.OC_API_BASE                 (injected by host page)
-  //   4. http://localhost:5000/api          (default local backend)
+  //   4. Same origin as the page            (backend serves frontend)
+  //   5. http://localhost:5000/api          (static frontend on localhost)
   //
-  // This lets the frontend be hosted statically (Vercel / GitHub Pages)
-  // while the Flask backend runs locally on the user's own machine.
+  // Key insight: if the page is served by the Flask backend itself
+  // (through a tunnel, LAN IP, or direct localhost), the API lives on
+  // the SAME origin.  We detect that by checking whether the page's
+  // hostname is localhost/127.0.0.1 — if so we use localhost:5000,
+  // otherwise we use the page's own origin.
   base: (() => {
     try {
       const url = new URL(window.location.href);
@@ -23,10 +27,19 @@ const API = {
         return clean;
       }
     } catch (e) { /* ignore */ }
+
     const stored = localStorage.getItem('oc_api_base');
     if (stored) return stored;
     if (window.OC_API_BASE) return window.OC_API_BASE.replace(/\/$/, '');
-    return 'http://localhost:5000/api';
+
+    const host = window.location.hostname;
+    const isLocalPage = host === 'localhost' || host === '127.0.0.1' || host === '';
+    if (isLocalPage) {
+      // Static file opened from disk or a dev server — backend on :5000
+      return 'http://localhost:5000/api';
+    }
+    // Page served by the Flask backend (direct or via tunnel) — same origin
+    return window.location.origin + '/api';
   })(),
 
   /** Override the backend URL at runtime and persist it. */
