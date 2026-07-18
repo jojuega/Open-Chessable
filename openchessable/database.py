@@ -46,11 +46,12 @@ DEFAULT_SCHEDULE_TYPE = "chessable_8level"
 
 
 def get_connection():
-    """Get a database connection with foreign keys enabled."""
+    """Get a database connection with foreign keys enabled and thread-safe access."""
     os.makedirs(DB_DIR, exist_ok=True)
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, check_same_thread=False, timeout=30.0)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
+    conn.execute("PRAGMA journal_mode = WAL")
     return conn
 
 
@@ -155,6 +156,7 @@ def init_db():
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_moves_level ON moves(level)")
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_moves_next_review ON moves(next_review)")
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_moves_chapter ON moves(chapter_id)")
+    cursor.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_moves_unique ON moves(chapter_id, fen, move_uci)")
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_chapters_course ON chapters(course_id)")
 
     conn.commit()

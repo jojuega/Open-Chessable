@@ -707,7 +707,92 @@ input, textarea, select { font-family: inherit; color: inherit; }
 .tab:hover { color: var(--t-1); background: rgba(255,255,255,0.04); }
 .tab.active { color: var(--accent); background: var(--accent-soft); }
 
-/* ─── Utility ───────────────────────────────────────────────── */
+/* ─── Progress bar ─────────────────────────────────────────── */
+.progress-container {
+  margin: 16px 0;
+  padding: 16px;
+  background: var(--bg-2);
+  border: 1px solid var(--b-1);
+  border-radius: var(--r-lg);
+}
+
+.progress-bar {
+  height: 6px;
+  background: var(--bg-3);
+  border-radius: var(--r-pill);
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent), var(--accent-2));
+  border-radius: var(--r-pill);
+  transition: width 0.3s var(--ease);
+  width: 0%;
+}
+
+.progress-text {
+  font-size: 12px;
+  color: var(--t-3);
+  font-family: var(--font-mono);
+}
+
+/* ─── Spinner ──────────────────────────────────────────────── */
+.spinner {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--b-2);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ─── Button loading state ─────────────────────────────────── */
+.btn.loading {
+  pointer-events: none;
+  opacity: 0.7;
+}
+
+.btn.loading::after {
+  content: '';
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  margin-left: 8px;
+  border: 2px solid rgba(255,255,255,0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+/* ─── Better focus states ──────────────────────────────────── */
+.btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.nav-item:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+/* ─── Card hover lift ──────────────────────────────────────── */
+.card {
+  transition: all 0.2s var(--ease);
+}
+
+.card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+}
+
+/* ─── Utility ──────────────────────────────────────────────── */
 .hidden { display: none !important; }
 .mt-16 { margin-top: 16px; }
 .mb-16 { margin-bottom: 16px; }

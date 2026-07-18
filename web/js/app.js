@@ -316,17 +316,38 @@ const App = {
     const file = document.getElementById('import-course-file').files[0];
     const text = document.getElementById('import-course-text').value.trim();
     const status = document.getElementById('import-course-status');
+    const btn = event.target;
 
     if (!name) { App.toast('Course name is required', 'error'); return; }
     if (!file && !text) { App.toast('Provide a PGN file or paste text', 'error'); return; }
 
-    status.textContent = 'Creating course...';
+    btn.classList.add('loading');
+    btn.textContent = 'Creating course...';
+    status.innerHTML = '<span class="spinner"></span> Creating course...';
 
     try {
       // Create course
       const course = await API.createCourse(name, '', '', 'both');
       const courseId = course.id || course;
-      status.textContent = 'Importing PGN...';
+
+      // Show progress bar
+      status.innerHTML = `
+        <div class="progress-container">
+          <div class="progress-bar"><div class="progress-fill" id="import-progress" style="width:0%"></div></div>
+          <div class="progress-text" id="import-progress-text">Parsing PGN...</div>
+        </div>
+      `;
+      btn.textContent = 'Importing...';
+
+      // Simulate progress (server doesn't stream, but shows activity)
+      const progressEl = document.getElementById('import-progress');
+      const progressText = document.getElementById('import-progress-text');
+      let pct = 0;
+      const interval = setInterval(() => {
+        pct = Math.min(pct + Math.random() * 15, 90);
+        progressEl.style.width = pct + '%';
+        progressText.textContent = pct < 30 ? 'Parsing PGN...' : pct < 60 ? 'Creating chapters...' : 'Inserting moves...';
+      }, 500);
 
       // Import full course PGN
       let result;
@@ -336,11 +357,20 @@ const App = {
         result = await API.importCoursePgn(courseId, text, tag);
       }
 
-      status.textContent = '';
-      App.toast(`Imported ${result.imported} moves into ${result.chapters_total} chapters`, 'success');
-      App.navigate('course', courseId);
+      clearInterval(interval);
+      progressEl.style.width = '100%';
+      progressText.textContent = `Done! ${result.imported} moves, ${result.chapters_total} chapters`;
+
+      setTimeout(() => {
+        status.innerHTML = '';
+        App.toast(`Imported ${result.imported} moves into ${result.chapters_total} chapters`, 'success');
+        App.navigate('course', courseId);
+      }, 800);
+
     } catch (err) {
-      status.textContent = '';
+      status.innerHTML = '';
+      btn.classList.remove('loading');
+      btn.textContent = 'Import Course';
       App.toast(err.message, 'error');
     }
   },

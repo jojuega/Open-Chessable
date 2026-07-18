@@ -802,16 +802,11 @@ def import_course_pgn(
             # Skip unparseable games but continue
             continue
 
+        # Batch insert with dedup via INSERT OR IGNORE
+        # (relies on UNIQUE index on chapter_id+fen+move_uci)
         for md in moves:
-            existing = conn.execute(
-                "SELECT id FROM moves WHERE chapter_id = ? AND fen = ? AND move_uci = ?",
-                (chapter_id, md["fen"], md["move_uci"]),
-            ).fetchone()
-            if existing:
-                total_skipped += 1
-                continue
-            conn.execute(
-                """INSERT INTO moves
+            cur = conn.execute(
+                """INSERT OR IGNORE INTO moves
                    (chapter_id, fen, move_uci, move_san, side, move_number, comment)
                    VALUES (?, ?, ?, ?, ?, ?, ?)""",
                 (
@@ -824,7 +819,10 @@ def import_course_pgn(
                     md.get("comment", ""),
                 ),
             )
-            total_imported += 1
+            if cur.rowcount > 0:
+                total_imported += 1
+            else:
+                total_skipped += 1
 
     conn.commit()
     conn.close()
