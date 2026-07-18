@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Open-Chessable — SRS Chess Trainer</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;510;590&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <!-- Navigation -->
+  <nav id="nav">
+    <div class="nav-brand">
+      <span class="brand-icon">♟</span>
+      <span class="brand-text">Open-Chessable</span>
+    </div>
+    <div class="nav-links">
+      <a href="#dashboard" class="nav-link active" data-route="dashboard">Dashboard</a>
+      <a href="#courses" class="nav-link" data-route="courses">Courses</a>
+      <a href="#train" class="nav-link" data-route="train">Train</a>
+      <a href="#import" class="nav-link" data-route="import">Import</a>
+    </div>
+  </nav>
+
+  <!-- Main content area -->
+  <main id="main-content">
+    <!-- Pages rendered here by app.js -->
+  </main>
+
+  <!-- Modal container -->
+  <div id="modal-overlay" class="modal-overlay hidden">
+    <div id="modal-content" class="modal-content"></div>
+  </div>
+
+  <!-- Toast container -->
+  <div id="toast-container"></div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/board.js"></script>
+  <script src="/js/courses.js"></script>
+  <script src="/js/trainer.js"></script>
+  <script src="/js/app.js"></script>
+</body>
+</html>

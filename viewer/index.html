@@ -1,0 +1,550 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Open-Chessable — Open-source SRS chess trainer</title>
+  <meta name="description" content="Open-Chessable is a free, open-source spaced-repetition chess trainer. Import PGNs, build repertoires, and train like a master — all on your own machine." />
+  <meta name="theme-color" content="#08090a" />
+
+  <!-- Open Graph / Twitter -->
+  <meta property="og:title" content="Open-Chessable — Open-source SRS chess trainer" />
+  <meta property="og:description" content="Free, self-hosted, SM-2 spaced-repetition trainer for chess openings, tactics, and endgames. Local-first, dark theme, native desktop." />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://jojuega.github.io/Open-Chessable/" />
+  <meta name="twitter:card" content="summary_large_image" />
+
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%E2%99%9E%3C/text%3E%3C/svg%3E" />
+
+  <style>
+    /* ── Linear.app–inspired dark theme ─────────────────────────────── */
+    :root {
+      --bg:          #08090a;
+      --bg-elev-1:   #0d0e10;
+      --bg-elev-2:   #131418;
+      --border:      #1f2024;
+      --border-soft: #181a1d;
+      --text:        #f7f8f8;
+      --text-mute:   #8a8f98;
+      --text-dim:    #62666d;
+      --accent:      #5e6ad2;
+      --accent-soft: rgba(94, 106, 210, 0.12);
+      --accent-line: rgba(94, 106, 210, 0.35);
+      --green:       #4cb782;
+      --radius:      8px;
+      --radius-lg:   12px;
+      --font:        ui-sans-serif, system-ui, -apple-system, "Segoe UI", Inter, "Helvetica Neue", Arial, sans-serif;
+      --mono:        ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font);
+      font-size: 15px;
+      line-height: 1.55;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      text-rendering: optimizeLegibility;
+    }
+
+    a { color: inherit; text-decoration: none; }
+    a:hover { color: var(--accent); }
+
+    .container { max-width: 1080px; margin: 0 auto; padding: 0 24px; }
+
+    /* ── Subtle radial glow behind the hero ─────────────────────────── */
+    .bg-grid {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background:
+        radial-gradient(60% 50% at 50% 0%, rgba(94,106,210,0.10), transparent 70%),
+        linear-gradient(to bottom, rgba(255,255,255,0.02), transparent 30%);
+      mask-image: linear-gradient(to bottom, #000 0%, transparent 80%);
+      -webkit-mask-image: linear-gradient(to bottom, #000 0%, transparent 80%);
+    }
+
+    /* ── Nav ────────────────────────────────────────────────────────── */
+    nav {
+      position: relative;
+      padding: 20px 0;
+      border-bottom: 1px solid var(--border-soft);
+    }
+    nav .container { display: flex; align-items: center; justify-content: space-between; }
+    .brand { display: flex; align-items: center; gap: 10px; font-weight: 600; letter-spacing: -0.01em; }
+    .brand-mark {
+      width: 26px; height: 26px;
+      display: grid; place-items: center;
+      background: var(--accent-soft);
+      border: 1px solid var(--accent-line);
+      border-radius: 6px;
+      color: var(--accent);
+      font-size: 14px;
+    }
+    .nav-links { display: flex; gap: 24px; font-size: 14px; color: var(--text-mute); }
+    .nav-links a { transition: color .15s ease; }
+
+    /* ── Buttons ────────────────────────────────────────────────────── */
+    .btn {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 9px 14px;
+      font-size: 14px; font-weight: 500;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      background: var(--bg-elev-1);
+      color: var(--text);
+      transition: all .15s ease;
+      cursor: pointer;
+    }
+    .btn:hover { border-color: var(--accent-line); color: var(--text); }
+    .btn-primary {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+      box-shadow: 0 0 0 0 var(--accent-soft);
+    }
+    .btn-primary:hover {
+      background: #6f7be0;
+      border-color: #6f7be0;
+      color: #fff;
+      box-shadow: 0 0 0 6px var(--accent-soft);
+    }
+    .btn-ghost { background: transparent; }
+    .btn .icon { width: 16px; height: 16px; }
+
+    /* ── Hero ───────────────────────────────────────────────────────── */
+    header.hero {
+      position: relative;
+      padding: 96px 0 80px;
+      text-align: center;
+    }
+    .eyebrow {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 5px 12px;
+      margin-bottom: 24px;
+      font-size: 12px; font-weight: 500;
+      letter-spacing: 0.02em;
+      color: var(--accent);
+      background: var(--accent-soft);
+      border: 1px solid var(--accent-line);
+      border-radius: 999px;
+    }
+    .eyebrow .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 8px var(--accent); }
+
+    h1 {
+      margin: 0 0 18px;
+      font-size: clamp(40px, 6vw, 64px);
+      font-weight: 600;
+      letter-spacing: -0.035em;
+      line-height: 1.05;
+      background: linear-gradient(180deg, #ffffff 0%, #c7c9cf 100%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .lede {
+      max-width: 640px;
+      margin: 0 auto 32px;
+      font-size: 18px;
+      color: var(--text-mute);
+      line-height: 1.55;
+    }
+    .cta-row { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+
+    /* ── Mock window (UI preview) ──────────────────────────────────── */
+    .preview {
+      position: relative;
+      margin: 64px auto 0;
+      max-width: 880px;
+      background: var(--bg-elev-1);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      box-shadow:
+        0 1px 0 rgba(255,255,255,0.04) inset,
+        0 30px 60px -20px rgba(0,0,0,0.6),
+        0 0 0 1px rgba(255,255,255,0.02);
+      overflow: hidden;
+    }
+    .preview-bar {
+      display: flex; align-items: center; gap: 8px;
+      padding: 12px 16px;
+      background: var(--bg-elev-2);
+      border-bottom: 1px solid var(--border-soft);
+    }
+    .preview-bar .dot { width: 11px; height: 11px; border-radius: 50%; background: #2a2c31; }
+    .preview-bar .title {
+      margin-left: 12px;
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--text-dim);
+    }
+    .preview-body {
+      display: grid;
+      grid-template-columns: 220px 1fr;
+      min-height: 320px;
+    }
+    .preview-side {
+      padding: 16px;
+      border-right: 1px solid var(--border-soft);
+      background: var(--bg-elev-1);
+    }
+    .preview-side .item {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 8px 10px;
+      border-radius: 6px;
+      font-size: 13px;
+      color: var(--text-mute);
+    }
+    .preview-side .item.active { background: var(--accent-soft); color: var(--text); }
+    .preview-side .badge {
+      font-size: 10px; padding: 2px 6px; border-radius: 4px;
+      background: var(--accent); color: #fff; font-weight: 600;
+    }
+    .preview-main {
+      padding: 24px;
+      display: flex; flex-direction: column; gap: 16px; align-items: center; justify-content: center;
+    }
+    .board-mock {
+      display: grid; grid-template-columns: repeat(8, 38px); grid-template-rows: repeat(8, 38px);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+    .sq { display: grid; place-items: center; font-size: 26px; }
+    .sq.light { background: #1a1c20; }
+    .sq.dark  { background: #0f1013; }
+    .preview-caption {
+      font-size: 13px; color: var(--text-dim);
+    }
+    .preview-caption kbd {
+      font-family: var(--mono);
+      background: var(--bg-elev-2);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 1px 6px;
+      font-size: 12px;
+      color: var(--text-mute);
+    }
+
+    /* ── Features section ──────────────────────────────────────────── */
+    section { padding: 80px 0; border-top: 1px solid var(--border-soft); position: relative; }
+    .section-head { max-width: 720px; margin: 0 auto 48px; text-align: center; }
+    .section-eyebrow {
+      font-size: 12px; font-weight: 600; letter-spacing: 0.08em;
+      text-transform: uppercase; color: var(--accent);
+      margin-bottom: 12px;
+    }
+    h2 {
+      margin: 0 0 14px;
+      font-size: clamp(28px, 3.5vw, 40px);
+      font-weight: 600;
+      letter-spacing: -0.025em;
+      line-height: 1.15;
+    }
+    .section-sub { color: var(--text-mute); font-size: 16px; }
+
+    .grid { display: grid; gap: 16px; }
+    .features { grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+    .card {
+      position: relative;
+      background: var(--bg-elev-1);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 24px;
+      transition: border-color .15s ease, transform .15s ease;
+    }
+    .card:hover { border-color: var(--border); }
+    .card-icon {
+      display: grid; place-items: center;
+      width: 36px; height: 36px;
+      border-radius: 8px;
+      background: var(--accent-soft);
+      color: var(--accent);
+      margin-bottom: 16px;
+      border: 1px solid var(--accent-line);
+    }
+    .card h3 {
+      margin: 0 0 6px;
+      font-size: 16px; font-weight: 600;
+      letter-spacing: -0.01em;
+    }
+    .card p { margin: 0; color: var(--text-mute); font-size: 14px; line-height: 1.55; }
+
+    /* ── How it works ─────────────────────────────────────────────── */
+    .steps { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); counter-reset: step; }
+    .step {
+      counter-increment: step;
+      padding: 24px;
+      border-left: 2px solid var(--border);
+      position: relative;
+    }
+    .step::before {
+      content: counter(step, decimal-leading-zero);
+      position: absolute;
+      top: 24px; left: -12px;
+      width: 22px; height: 22px;
+      display: grid; place-items: center;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 50%;
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--text-mute);
+    }
+    .step h4 { margin: 0 0 6px; font-size: 15px; font-weight: 600; }
+    .step p  { margin: 0; color: var(--text-mute); font-size: 14px; }
+
+    /* ── Code block ───────────────────────────────────────────────── */
+    pre.code {
+      max-width: 720px; margin: 32px auto 0;
+      background: var(--bg-elev-1);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 20px 24px;
+      overflow-x: auto;
+      font-family: var(--mono);
+      font-size: 13px;
+      line-height: 1.7;
+      color: #d6d8de;
+    }
+    pre.code .c { color: var(--text-dim); }
+    pre.code .k { color: #b4a2ff; }
+    pre.code .s { color: var(--green); }
+    pre.code .p { color: #8eb6ff; }
+
+    /* ── Footer ───────────────────────────────────────────────────── */
+    footer {
+      padding: 48px 0 56px;
+      border-top: 1px solid var(--border-soft);
+      color: var(--text-dim);
+      font-size: 13px;
+    }
+    footer .container { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; }
+    footer a { color: var(--text-mute); }
+    footer a:hover { color: var(--text); }
+
+    /* ── Responsive ───────────────────────────────────────────────── */
+    @media (max-width: 720px) {
+      header.hero { padding: 64px 0 56px; }
+      .preview-body { grid-template-columns: 1fr; }
+      .preview-side { display: none; }
+      .nav-links { display: none; }
+      .board-mock { grid-template-columns: repeat(8, 32px); grid-template-rows: repeat(8, 32px); }
+      .sq { font-size: 20px; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="bg-grid" aria-hidden="true"></div>
+
+  <!-- ─── Nav ─────────────────────────────────────────────────────── -->
+  <nav>
+    <div class="container">
+      <a class="brand" href="#">
+        <span class="brand-mark">♞</span>
+        <span>Open-Chessable</span>
+      </a>
+      <div class="nav-links">
+        <a href="#features">Features</a>
+        <a href="#how">How it works</a>
+        <a href="#install">Install</a>
+      </div>
+      <a class="btn" href="https://github.com/jojuega/Open-Chessable">
+        <svg class="icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .3a12 12 0 0 0-3.79 23.4c.6.11.82-.26.82-.58v-2.04c-3.34.73-4.04-1.61-4.04-1.61-.55-1.4-1.34-1.77-1.34-1.77-1.09-.74.08-.73.08-.73 1.21.08 1.84 1.24 1.84 1.24 1.07 1.83 2.81 1.3 3.5.99.11-.78.42-1.3.76-1.6-2.66-.3-5.47-1.33-5.47-5.93 0-1.31.47-2.38 1.24-3.22-.12-.31-.54-1.53.12-3.18 0 0 1.01-.32 3.3 1.23a11.5 11.5 0 0 1 6 0c2.29-1.55 3.3-1.23 3.3-1.23.66 1.65.24 2.87.12 3.18.77.84 1.24 1.91 1.24 3.22 0 4.61-2.81 5.63-5.49 5.93.43.37.81 1.1.81 2.22v3.29c0 .32.22.7.83.58A12 12 0 0 0 12 .3z"/></svg>
+        View on GitHub
+      </a>
+    </div>
+  </nav>
+
+  <!-- ─── Hero ─────────────────────────────────────────────────────── -->
+  <header class="hero">
+    <div class="container">
+      <span class="eyebrow"><span class="dot"></span> v0.1 · MIT licensed</span>
+      <h1>Train chess the smart way.</h1>
+      <p class="lede">
+        Open-Chessable is a free, open-source spaced-repetition trainer for chess.
+        Import any PGN, build your repertoire, and review positions right when
+        you're about to forget them. Runs locally, in a native desktop window.
+      </p>
+      <div class="cta-row">
+        <a class="btn btn-primary" href="https://github.com/jojuega/Open-Chessable">
+          <svg class="icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .3a12 12 0 0 0-3.79 23.4c.6.11.82-.26.82-.58v-2.04c-3.34.73-4.04-1.61-4.04-1.61-.55-1.4-1.34-1.77-1.34-1.77-1.09-.74.08-.73.08-.73 1.21.08 1.84 1.24 1.84 1.24 1.07 1.83 2.81 1.3 3.5.99.11-.78.42-1.3.76-1.6-2.66-.3-5.47-1.33-5.47-5.93 0-1.31.47-2.38 1.24-3.22-.12-.31-.54-1.53.12-3.18 0 0 1.01-.32 3.3 1.23a11.5 11.5 0 0 1 6 0c2.29-1.55 3.3-1.23 3.3-1.23.66 1.65.24 2.87.12 3.18.77.84 1.24 1.91 1.24 3.22 0 4.61-2.81 5.63-5.49 5.93.43.37.81 1.1.81 2.22v3.29c0 .32.22.7.83.58A12 12 0 0 0 12 .3z"/></svg>
+          View on GitHub
+        </a>
+        <a class="btn btn-ghost" href="#install">Quick start →</a>
+      </div>
+
+      <!-- Mock window preview -->
+      <div class="preview" role="img" aria-label="Open-Chessable desktop app preview">
+        <div class="preview-bar">
+          <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+          <span class="title">Open-Chessable — Italian Game</span>
+        </div>
+        <div class="preview-body">
+          <aside class="preview-side">
+            <div class="item active">Italian Game <span class="badge">12 due</span></div>
+            <div class="item">Giuoco Piano</div>
+            <div class="item">Anti-Sveshnikov</div>
+            <div class="item">Evans Gambit</div>
+            <div class="item">Two Knights</div>
+          </aside>
+          <div class="preview-main">
+            <div class="board-mock" aria-hidden="true">
+              <!-- rank 8 -->
+              <div class="sq light">♜</div><div class="sq dark">♞</div><div class="sq light">♝</div><div class="sq dark">♛</div><div class="sq light">♚</div><div class="sq dark">♝</div><div class="sq light">♞</div><div class="sq dark">♜</div>
+              <!-- rank 7 -->
+              <div class="sq dark">♟</div><div class="sq light">♟</div><div class="sq dark">♟</div><div class="sq light">♟</div><div class="sq dark"></div><div class="sq light">♟</div><div class="sq dark">♟</div><div class="sq light">♟</div>
+              <!-- rank 6 -->
+              <div class="sq light"></div><div class="sq dark"></div><div class="sq light"></div><div class="sq dark"></div><div class="sq light"></div><div class="sq dark"></div><div class="sq light"></div><div class="sq dark"></div>
+              <!-- rank 5 -->
+              <div class="sq dark"></div><div class="sq light"></div><div class="sq dark"></div><div class="sq light"></div><div class="sq dark">♙</div><div class="sq light"></div><div class="sq dark"></div><div class="sq light"></div>
+              <!-- rank 4 -->
+              <div class="sq light"></div><div class="sq dark"></div><div class="sq light"></div><div class="sq dark"></div><div class="sq light">♟</div><div class="sq dark"></div><div class="sq light"></div><div class="sq dark"></div>
+              <!-- rank 3 -->
+              <div class="sq dark"></div><div class="sq light"></div><div class="sq dark">♗</div><div class="sq light"></div><div class="sq dark"></div><div class="sq light"></div><div class="sq dark"></div><div class="sq light"></div>
+              <!-- rank 2 -->
+              <div class="sq light">♙</div><div class="sq dark">♙</div><div class="sq light">♙</div><div class="sq dark">♙</div><div class="sq light"></div><div class="sq dark">♙</div><div class="sq light">♙</div><div class="sq dark">♙</div>
+              <!-- rank 1 -->
+              <div class="sq dark">♖</div><div class="sq light">♘</div><div class="sq dark">♗</div><div class="sq light">♕</div><div class="sq dark">♔</div><div class="sq light"></div><div class="sq dark">♘</div><div class="sq light">♖</div>
+            </div>
+            <div class="preview-caption">
+              What is White's best move? <kbd>1</kbd> Again <kbd>2</kbd> Hard <kbd>3</kbd> Good <kbd>4</kbd> Easy
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- ─── Features ──────────────────────────────────────────────────── -->
+  <section id="features">
+    <div class="container">
+      <div class="section-head">
+        <div class="section-eyebrow">Features</div>
+        <h2>Everything you'd expect from a serious trainer.</h2>
+        <p class="section-sub">No subscriptions. No ads. No tracking. Just a sharp tool that gets out of your way.</p>
+      </div>
+
+      <div class="grid features">
+        <div class="card">
+          <div class="card-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/><path d="M12 7v5l3 2"/></svg>
+          </div>
+          <h3>Spaced Repetition (SM-2)</h3>
+          <p>The proven SuperMemo algorithm with 0–5 quality grading, ease-factor tracking, and adaptive intervals — so you see each position right before you forget it.</p>
+        </div>
+
+        <div class="card">
+          <div class="card-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          </div>
+          <h3>Full PGN import</h3>
+          <p>Drop in any PGN. The parser walks main lines and bracketed variations, creating one learnable card per leaf position with FEN, UCI, and SAN.</p>
+        </div>
+
+        <div class="card">
+          <div class="card-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7h18"/><path d="M3 12h18"/><path d="M3 17h12"/></svg>
+          </div>
+          <h3>Course management</h3>
+          <p>Organize repertoires into courses and chapters. Filter by color side, track per-chapter due counts, and watch your mastery climb.</p>
+        </div>
+
+        <div class="card">
+          <div class="card-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20"/><path d="M2 12h20"/></svg>
+          </div>
+          <h3>Dark, focused UI</h3>
+          <p>Built for long study sessions. Linear-inspired dark palette, minimal chrome, zero distractions — just you and the position.</p>
+        </div>
+
+        <div class="card">
+          <div class="card-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8"/><path d="M12 16v4"/></svg>
+          </div>
+          <h3>Native desktop app</h3>
+          <p>Powered by pywebview + Flask. Real OS window, real keyboard shortcuts, no Electron, no browser tabs cluttering your workflow.</p>
+        </div>
+
+        <div class="card">
+          <div class="card-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2 4 6v6c0 5 3.4 9.5 8 10 4.6-.5 8-5 8-10V6z"/></svg>
+          </div>
+          <h3>Local-first, private</h3>
+          <p>Your study data stays in a single SQLite file on your machine. No accounts, no telemetry, no cloud sync — your repertoire is yours alone.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─── How it works ─────────────────────────────────────────────── -->
+  <section id="how">
+    <div class="container">
+      <div class="section-head">
+        <div class="section-eyebrow">Workflow</div>
+        <h2>From PGN to mastery in four steps.</h2>
+      </div>
+
+      <div class="grid steps">
+        <div class="step">
+          <h4>Create a course</h4>
+          <p>Name your repertoire, pick a color (white, black, or both), and you're ready to import.</p>
+        </div>
+        <div class="step">
+          <h4>Import a PGN</h4>
+          <p>Paste or upload any PGN file. The parser extracts every mainline and variation.</p>
+        </div>
+        <div class="step">
+          <h4>Train what's due</h4>
+          <p>See the position, find the right move, then grade yourself 0–5. The scheduler takes it from there.</p>
+        </div>
+        <div class="step">
+          <h4>Watch mastery grow</h4>
+          <p>Intervals stretch from 1 day to 224+ as each move becomes automatic. You only review what matters.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─── Install ─────────────────────────────────────────────────── -->
+  <section id="install">
+    <div class="container">
+      <div class="section-head">
+        <div class="section-eyebrow">Quick start</div>
+        <h2>Up and running in 30 seconds.</h2>
+        <p class="section-sub">Requires Python 3.10+. Runs on Linux, macOS, and Windows.</p>
+      </div>
+
+      <pre class="code"><span class="c"># clone &amp; install</span>
+<span class="k">git clone</span> https://github.com/jojuega/Open-Chessable.git
+<span class="k">cd</span> Open-Chessable
+<span class="k">python3 -m venv</span> .venv
+<span class="k">source</span> .venv/bin/activate
+<span class="k">pip install</span> -r requirements.txt
+
+<span class="c"># launch the native desktop app</span>
+<span class="k">python</span> app.py
+
+<span class="c"># …or run headless and open http://127.0.0.1:5000 in any browser</span>
+<span class="k">python</span> server.py</pre>
+    </div>
+  </section>
+
+  <!-- ─── Footer ──────────────────────────────────────────────────── -->
+  <footer>
+    <div class="container">
+      <div>© 2026 Open-Chessable · MIT licensed</div>
+      <div>
+        <a href="https://github.com/jojuega/Open-Chessable">GitHub</a> ·
+        <a href="https://github.com/jojuega/Open-Chessable/issues">Issues</a> ·
+        <a href="https://github.com/jojuega/Open-Chessable/blob/main/README.md">Docs</a>
+      </div>
+    </div>
+  </footer>
+
+</body>
+</html>
